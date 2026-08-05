@@ -79,8 +79,17 @@ class TranslateView(Gtk.Box):
         self.target_view.set_cursor_visible(False)
         target_scroll.add(self.target_view)
 
-        # Fixed 50/50 split with a plain rule in between. Both scrolls request
-        # no width of their own, so the box hands each the same half.
+        # Fixed 50/50 split with a plain rule in between. A box hands each child
+        # its natural width before sharing out the rest, and a text view's
+        # natural width follows its text — so without the size group the divider
+        # would drift as the user types. With it both scrolls request exactly the
+        # same, and the box can only split the remainder down the middle. The box
+        # itself can't be homogeneous: the separator is a child too and would
+        # claim a third of the width.
+        same_width = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
+        same_width.add_widget(source_scroll)
+        same_width.add_widget(target_scroll)
+
         panes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         panes.set_name("panes")
         panes.pack_start(source_scroll, True, True, 0)
