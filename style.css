@@ -1,0 +1,110 @@
+* {
+    font-family: "Ubuntu", sans-serif;
+}
+
+#panel-root {
+    background-color: @theme_bg_color;
+    border: 1px solid @borders;
+}
+
+#toolbar {
+    background-color: @theme_bg_color;
+    padding: 8px 12px;
+    border-bottom: 1px solid @borders;
+}
+
+/* ============================================================
+   Shared control sizing — the one place to resize every action
+   control in the app. Icon-only buttons also share a fixed
+   width here; the direction button sizes to its own label.
+   ============================================================ */
+#btn-action,
+#btn-direction {
+    min-height: 28px;
+}
+
+#btn-action {
+    min-width: 28px;
+}
+
+#btn-action {
+    background-color: transparent;
+    color: mix(@theme_fg_color, @theme_bg_color, 0.4);
+    border: 1px solid @borders;
+    border-radius: 5px;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+#btn-action:hover {
+    background-color: @theme_selected_bg_color;
+    color: @theme_selected_fg_color;
+    border-color: @theme_selected_bg_color;
+}
+
+#btn-direction {
+    background-color: @theme_selected_bg_color;
+    color: @theme_selected_fg_color;
+    border: 1px solid @borders;
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#btn-direction:hover {
+    background-color: shade(@theme_selected_bg_color, 1.15);
+}
+
+#detected-label {
+    color: mix(@theme_fg_color, @theme_bg_color, 0.55);
+    font-size: 11px;
+    padding: 0 8px;
+}
+
+#panes {
+    background-color: @theme_base_color;
+}
+
+#panes separator {
+    background-color: @borders;
+    min-height: 1px;
+}
+
+#panes scrolledwindow,
+#panes scrolledwindow viewport {
+    background-color: transparent;
+}
+
+#source-text,
+#source-text text,
+#target-text,
+#target-text text {
+    background-color: transparent;
+    color: @theme_text_color;
+}
+
+#source-text,
+#target-text {
+    border: none;
+    padding: 12px 14px;
+    font-size: 14px;
+    caret-color: @theme_selected_bg_color;
+}
+
+#target-text,
+#target-text text {
+    color: mix(@theme_text_color, @theme_base_color, 0.12);
+}
+
+#status-label {
+    color: mix(@theme_fg_color, @theme_bg_color, 0.55);
+    background-color: @theme_bg_color;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-top: 1px solid @borders;
+}
+
+#status-label.status-error {
+    color: @error_color;
+}
