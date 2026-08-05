@@ -17,9 +17,8 @@ MODE_LABELS = {"auto": "Auto", "en": "EN → ES", "es": "ES → EN"}
 class TranslateView(Gtk.Box):
     """Source box, target box and a direction control — the whole app, really."""
 
-    def __init__(self, hint: str = ""):
+    def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self._hint = hint
         self._mode = "auto"
         self._debounce_timeout: int | None = None
         # Responses arrive out of order (a short text typed after a long one can
@@ -28,7 +27,6 @@ class TranslateView(Gtk.Box):
         self._request_id = 0
 
         self._build_ui()
-        self._set_status(self._hint)
 
     def _build_ui(self):
         toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -39,8 +37,11 @@ class TranslateView(Gtk.Box):
         self.btn_direction.set_tooltip_text("Cambiar dirección")
         self.btn_direction.connect("clicked", self._on_cycle_direction)
 
-        self.detected_label = Gtk.Label(label="", xalign=0)
-        self.detected_label.set_name("detected-label")
+        # One toolbar label carries both the detected direction and the
+        # transient status/error messages — they never need to show at once.
+        self.status_label = Gtk.Label(label="", xalign=0)
+        self.status_label.set_name("status-label")
+        self.status_label.set_ellipsize(3)
 
         self.btn_clear = Gtk.Button()
         self.btn_clear.set_name("btn-action")
@@ -57,7 +58,7 @@ class TranslateView(Gtk.Box):
         self.btn_copy.connect("clicked", self._on_copy)
 
         toolbar.pack_start(self.btn_direction, False, False, 0)
-        toolbar.pack_start(self.detected_label, True, True, 0)
+        toolbar.pack_start(self.status_label, True, True, 0)
         toolbar.pack_end(self.btn_copy, False, False, 0)
         toolbar.pack_end(self.btn_clear, False, False, 0)
 
@@ -78,31 +79,17 @@ class TranslateView(Gtk.Box):
         self.target_view.set_cursor_visible(False)
         target_scroll.add(self.target_view)
 
-        # Both halves share the space evenly and stay resizable by the user.
-        panes = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
+        # Fixed 50/50 split with a plain rule in between. Both scrolls request
+        # no width of their own, so the box hands each the same half.
+        panes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         panes.set_name("panes")
-        panes.pack1(source_scroll, True, False)
-        panes.pack2(target_scroll, True, False)
-        self._panes_split = False
-        panes.connect("map", self._on_panes_map)
+        panes.pack_start(source_scroll, True, True, 0)
+        panes.pack_start(
+            Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 0)
+        panes.pack_start(target_scroll, True, True, 0)
 
-        self.status_label = Gtk.Label(label="", xalign=0)
-        self.status_label.set_name("status-label")
-        self.status_label.set_ellipsize(3)
-
-        self.pack_start(toolbar, False, False, 0)
         self.pack_start(panes, True, True, 0)
-        self.pack_start(self.status_label, False, False, 0)
-
-    def _on_panes_map(self, panes):
-        # Gtk.Paned only splits evenly if told to; without a position it hands
-        # every extra pixel to the first child. Only on the first map — the
-        # panel is mapped again on every show and that must not undo a split
-        # the user dragged.
-        if not self._panes_split:
-            self._panes_split = True
-            panes.set_position(panes.get_allocated_height() // 2)
-        return False
+        self.pack_start(toolbar, False, False, 0)
 
     # ---- public API -------------------------------------------------
 
@@ -154,8 +141,7 @@ class TranslateView(Gtk.Box):
 
         if not text.strip():
             self._set_target("")
-            self.detected_label.set_text("")
-            self._set_status(self._hint)
+            self._set_status("")
             return False
 
         self._set_status("Traduciendo…")
@@ -176,8 +162,7 @@ class TranslateView(Gtk.Box):
         if request_id != self._request_id:
             return False
         self._set_target(result["text"])
-        self.detected_label.set_text(f"{result['source']} → {result['target']}")
-        self._set_status(self._hint)
+        self._set_status(f"{result['source']} → {result['target']}")
         return False
 
     def _on_failure(self, request_id: int, message: str):

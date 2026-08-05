@@ -24,7 +24,7 @@ class TranslatorPanel(Gtk.Window):
         self._focus_lost_at: float = 0.0
 
         self._load_css()
-        self.view = TranslateView(hint="Ctrl+Enter para traducir ya · Esc para ocultar")
+        self.view = TranslateView()
         self.add(self.view)
         self._position_panel()
 

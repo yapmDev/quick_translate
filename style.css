@@ -10,7 +10,7 @@
 #toolbar {
     background-color: @theme_bg_color;
     padding: 8px 12px;
-    border-bottom: 1px solid @borders;
+    border-top: 1px solid @borders;
 }
 
 /* ============================================================
@@ -56,19 +56,23 @@
     background-color: shade(@theme_selected_bg_color, 1.15);
 }
 
-#detected-label {
+#status-label {
     color: mix(@theme_fg_color, @theme_bg_color, 0.55);
     font-size: 11px;
     padding: 0 8px;
+}
+
+#status-label.status-error {
+    color: @error_color;
 }
 
 #panes {
     background-color: @theme_base_color;
 }
 
-#panes separator {
+#panes > separator {
     background-color: @borders;
-    min-height: 1px;
+    min-width: 1px;
 }
 
 #panes scrolledwindow,
@@ -95,16 +99,4 @@
 #target-text,
 #target-text text {
     color: mix(@theme_text_color, @theme_base_color, 0.12);
-}
-
-#status-label {
-    color: mix(@theme_fg_color, @theme_bg_color, 0.55);
-    background-color: @theme_bg_color;
-    font-size: 11px;
-    padding: 6px 12px;
-    border-top: 1px solid @borders;
-}
-
-#status-label.status-error {
-    color: @error_color;
 }

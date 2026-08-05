@@ -37,7 +37,7 @@ Description=quicktranslate
 After=graphical-session.target
 
 [Service]
-ExecStart=/usr/bin/python3 %h/Projects/quick_traslate/main.py
+ExecStart=/usr/bin/python3 %h/Projects/quick_translate/main.py
 Restart=on-failure
 RestartSec=3
 
