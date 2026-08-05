@@ -80,7 +80,18 @@ class TranslatorPanel(Gtk.Window):
         self._focus_lost_at = time.monotonic()
         return False
 
+    def save_geometry(self):
+        """Remember where the panel is right now, so the next show reuses it."""
+        if not self.get_visible():
+            return
+        x, y = self.get_position()
+        w, h = self.get_size()
+        geometry_mod.save_last_geometry(x, y, w, h)
+
     def _hide(self):
+        # Dismissing the panel is the moment its geometry becomes "the last one
+        # the user chose" — every hide path goes through here.
+        self.save_geometry()
         self._hidden_at = time.monotonic()
         self.hide()
 

@@ -55,13 +55,19 @@ class TranslatorApp:
         menu.append(item_open)
         menu.append(Gtk.SeparatorMenuItem())
         item_quit = Gtk.MenuItem(label="Stop service")
-        item_quit.connect("activate", lambda _: Gtk.main_quit())
+        item_quit.connect("activate", lambda _: self._quit())
         menu.append(item_quit)
         menu.show_all()
         self.tray.set_menu(menu)
 
         # middle click → toggle straight away, skipping the menu
         self.tray.set_secondary_activate_target(item_open)
+
+    def _quit(self):
+        # Quitting with the panel still open is the one exit that doesn't go
+        # through a hide, so its geometry has to be committed here.
+        self.panel.save_geometry()
+        Gtk.main_quit()
 
     def _setup_signals(self):
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, self._on_sigusr1)
