@@ -43,14 +43,14 @@ class TranslateView(Gtk.Box):
 
         # Transient status/error messages only: the direction that was actually
         # used lives in the button itself.
-        self.status_label = Gtk.Label(label="", xalign=0)
+        self.status_label = Gtk.Label(label="", xalign=1)
         self.status_label.set_name("status-label")
         self.status_label.set_ellipsize(3)
 
         self.btn_clear = Gtk.Button()
         self.btn_clear.set_name("btn-action")
         self.btn_clear.add(Gtk.Image.new_from_icon_name(
-            "edit-clear-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
+            "edit-clear-all-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
         self.btn_clear.set_tooltip_text("Limpiar")
         self.btn_clear.connect("clicked", self._on_clear)
 
@@ -61,10 +61,16 @@ class TranslateView(Gtk.Box):
         self.btn_copy.set_tooltip_text("Copiar traducción")
         self.btn_copy.connect("clicked", self._on_copy)
 
+        # Direction on the left, status text on the right, actions dead center:
+        # set_center_widget is the only way to center against the toolbar itself
+        # rather than against whatever space the other two happen to leave.
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        actions.pack_start(self.btn_clear, False, False, 0)
+        actions.pack_start(self.btn_copy, False, False, 0)
+
         toolbar.pack_start(self.btn_direction, False, False, 0)
-        toolbar.pack_start(self.status_label, True, True, 0)
-        toolbar.pack_end(self.btn_copy, False, False, 0)
-        toolbar.pack_end(self.btn_clear, False, False, 0)
+        toolbar.set_center_widget(actions)
+        toolbar.pack_end(self.status_label, True, True, 0)
 
         source_scroll = Gtk.ScrolledWindow()
         source_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)

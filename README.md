@@ -11,7 +11,8 @@ Nothing is stored: no history, no cache, no settings.
   the clipboard and translated on the spot whenever the copy is recent (under
   30 s); otherwise it opens untouched
 - Translates as you type (debounced), auto-detecting the direction
-- Direction button to force `EN → ES` or `ES → EN`
+- Direction button to swap: the translation becomes the text to translate, in
+  the opposite direction (`EN → ES` / `ES → EN`)
 - Follows the system theme (GTK3)
 - systemd user service friendly
 
