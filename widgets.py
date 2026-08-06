@@ -9,8 +9,9 @@ import translate as translate_mod
 # request only goes out once the user pauses.
 DEBOUNCE_MS = 450
 
-# Direction cycles through the button: detect, or force one of the two.
-MODES = ("auto", "en", "es")
+# The panel starts in "auto" and lands on a forced direction as soon as the
+# user swaps: the swapped text is a known language, so there is nothing left to
+# detect. Emptying the source box goes back to "auto".
 MODE_LABELS = {"auto": "Auto", "en": "EN → ES", "es": "ES → EN"}
 
 
@@ -20,6 +21,9 @@ class TranslateView(Gtk.Box):
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self._mode = "auto"
+        # (source, target) of the last translation that arrived — what the swap
+        # button needs to know which way the texts are currently facing.
+        self._detected: tuple[str, str] | None = None
         self._debounce_timeout: int | None = None
         # Responses arrive out of order (a short text typed after a long one can
         # come back first), so every result carries the id of the request that
@@ -34,11 +38,11 @@ class TranslateView(Gtk.Box):
 
         self.btn_direction = Gtk.Button(label=MODE_LABELS[self._mode])
         self.btn_direction.set_name("btn-direction")
-        self.btn_direction.set_tooltip_text("Cambiar dirección")
-        self.btn_direction.connect("clicked", self._on_cycle_direction)
+        self.btn_direction.set_tooltip_text("Invertir dirección e intercambiar textos")
+        self.btn_direction.connect("clicked", self._on_swap_direction)
 
-        # One toolbar label carries both the detected direction and the
-        # transient status/error messages — they never need to show at once.
+        # Transient status/error messages only: the direction that was actually
+        # used lives in the button itself.
         self.status_label = Gtk.Label(label="", xalign=0)
         self.status_label.set_name("status-label")
         self.status_label.set_ellipsize(3)
@@ -151,6 +155,10 @@ class TranslateView(Gtk.Box):
         if not text.strip():
             self._set_target("")
             self._set_status("")
+            # An empty box has no direction: back to detecting.
+            self._mode = "auto"
+            self._detected = None
+            self._set_direction_label()
             return False
 
         self._set_status("Traduciendo…")
@@ -171,7 +179,11 @@ class TranslateView(Gtk.Box):
         if request_id != self._request_id:
             return False
         self._set_target(result["text"])
-        self._set_status(f"{result['source']} → {result['target']}")
+        self._set_status("")
+        self._detected = (result["source"], result["target"])
+        # Only "auto" leaves any doubt about which way the text went, so only
+        # then is the detected direction worth showing.
+        self._set_direction_label(detected=self._detected)
         return False
 
     def _on_failure(self, request_id: int, message: str):
@@ -183,6 +195,12 @@ class TranslateView(Gtk.Box):
     def _set_target(self, text: str):
         self.target_view.get_buffer().set_text(text)
 
+    def _set_direction_label(self, detected: tuple[str, str] | None = None):
+        label = MODE_LABELS[self._mode]
+        if self._mode == "auto" and detected:
+            label = f"{label} ({detected[0].upper()} → {detected[1].upper()})"
+        self.btn_direction.set_label(label)
+
     def _set_status(self, text: str, error: bool = False):
         self.status_label.set_text(text)
         style = self.status_label.get_style_context()
@@ -193,9 +211,29 @@ class TranslateView(Gtk.Box):
 
     # ---- toolbar actions ---------------------------------------------
 
-    def _on_cycle_direction(self, _btn):
-        self._mode = MODES[(MODES.index(self._mode) + 1) % len(MODES)]
-        self.btn_direction.set_label(MODE_LABELS[self._mode])
+    def _on_swap_direction(self, _btn):
+        """Turn the panel around: the translation becomes the text to translate.
+
+        The new source text is in the language the last answer translated *to*,
+        so that language becomes the forced mode — no detection needed, and the
+        result should read back roughly as what the user started from.
+        """
+        translation = self.get_translation()
+        if translation and self._detected:
+            self._mode = self._detected[1]
+            self._detected = None
+            previous_source = self.get_source_text()
+            # Refilling the box schedules a debounced translation; translate_now
+            # cancels that timer and fires the swapped direction right away. The
+            # old source goes to the other side so the swap looks instant — the
+            # real back-translation replaces it when it lands.
+            self.set_source_text(translation)
+            self._set_target(previous_source)
+        else:
+            # Nothing translated yet, so there is nothing to swap — just flip
+            # which direction the next translation will be forced into.
+            self._mode = "es" if self._mode == "en" else "en"
+        self._set_direction_label()
         self.translate_now()
 
     def _on_clear(self, _btn):
