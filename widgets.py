@@ -6,8 +6,11 @@ import threading
 import translate as translate_mod
 
 # Typing keeps firing "changed"; a translation is a network round trip, so the
-# request only goes out once the user pauses.
-DEBOUNCE_MS = 450
+# request only goes out once the user pauses. Long enough that a pause *inside*
+# a sentence does not spend a request: Google's abuse system throttles this
+# endpoint, and every keystroke gap under the threshold is one more request
+# against whatever budget it is keeping.
+DEBOUNCE_MS = 800
 
 # The panel starts in "auto" and lands on a forced direction as soon as the
 # user swaps: the swapped text is a known language, so there is nothing left to
