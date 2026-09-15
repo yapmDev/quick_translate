@@ -5,6 +5,7 @@ of answers already received and the cooldown a 429 arms.
 """
 import json
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -166,6 +167,21 @@ def language_name(code: str) -> str:
     """Display name for a language code — the raw code if Google sent one we
     don't list (its detector answers with codes the translator doesn't offer)."""
     return LANGUAGE_NAMES.get(code, code.upper())
+
+
+def _fold(text: str) -> str:
+    """Lowercased and stripped of accents, so "aleman" can find "Alemán"."""
+    decomposed = unicodedata.normalize("NFD", text.casefold())
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def language_matches(code: str, query: str) -> bool:
+    """Does this language answer to `query`? Matches the name or the code, and
+    an empty query matches everything — it is a filter, not a search."""
+    query = _fold(query.strip())
+    if not query:
+        return True
+    return query in _fold(LANGUAGE_NAMES.get(code, "")) or query in code.casefold()
 
 
 # Touched from the worker threads in widgets.py, never under a lock: a dict

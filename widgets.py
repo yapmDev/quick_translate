@@ -3,7 +3,9 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib, Pango
 import threading
+import prefs
 import translate as translate_mod
+from language_chooser import LanguageChooser
 
 # Typing keeps firing "changed"; a translation is a network round trip, so the
 # request only goes out once the user pauses. Long enough that a pause *inside*
@@ -18,9 +20,11 @@ AUTO_LABEL = "Automático"
 # Longest language name is 20 characters and the auto row adds the detected one
 # on top of that; past this the name ellipsizes instead of widening the toolbar.
 LANG_WIDTH_CHARS = 20
-# A hundred languages in a single column is a scrollbar to nowhere, so the
-# popup lays them out as a grid.
-LANG_COLUMNS = 4
+# The selectors only offer the languages the user keeps (see prefs.py). The
+# last row is the way out of that short list: it is not a language, it opens the
+# full one — hence an id no language code can collide with.
+SHOW_ALL = "__show_all__"
+SHOW_ALL_LABEL = "Mostrar todos…"
 
 
 class TranslateView(Gtk.Box):
@@ -28,8 +32,9 @@ class TranslateView(Gtk.Box):
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self._source = translate_mod.DEFAULT_SOURCE
-        self._target = translate_mod.DEFAULT_TARGET
+        # The pair the panel was last left on, and the short list of languages
+        # the selectors offer — both from the last run.
+        self._source, self._target, self._favorites = prefs.load()
         # The language the last answer was detected as. Only meaningful while
         # the source is "auto", and the only thing that can turn that "auto"
         # into a concrete language for the swap button.
@@ -50,15 +55,11 @@ class TranslateView(Gtk.Box):
         toolbar.set_name("toolbar")
 
         self.combo_source, self._source_store = self._build_lang_combo(
-            ((translate_mod.AUTO, AUTO_LABEL),) + translate_mod.LANGUAGES,
-            "Idioma del texto original",
-        )
-        self.combo_source.set_active_id(self._source)
+            "Idioma del texto original")
+        self.combo_target, self._target_store = self._build_lang_combo(
+            "Idioma de la traducción")
+        self._reload_lang_models()
         self.combo_source.connect("changed", self._on_source_lang_changed)
-
-        self.combo_target, _ = self._build_lang_combo(
-            translate_mod.LANGUAGES, "Idioma de la traducción")
-        self.combo_target.set_active_id(self._target)
         self.combo_target.connect("changed", self._on_target_lang_changed)
 
         self.btn_swap = Gtk.Button()
@@ -143,26 +144,51 @@ class TranslateView(Gtk.Box):
         self.pack_start(panes, True, True, 0)
         self.pack_start(toolbar, False, False, 0)
 
-    def _build_lang_combo(self, entries, tooltip: str):
-        """A selector over (code, name) rows. Returns the combo and its model —
-        the source one keeps the model around to relabel its "auto" row."""
+    def _build_lang_combo(self, tooltip: str):
+        """An empty selector over (code, name) rows, filled by _fill_store: the
+        rows change as the short list does, so both models are kept around."""
         store = Gtk.ListStore(str, str)
-        for code, name in entries:
-            store.append([code, name])
 
         combo = Gtk.ComboBox.new_with_model(store)
         combo.set_name("lang-combo")
         combo.set_tooltip_text(tooltip)
         # Column 0 is the language code, so the selection is read and written as
-        # a code (set_active_id/get_active_id) instead of as a row index.
+        # a code (set_active_id/get_active_id) instead of as a row index. The
+        # popup is a plain column: it only ever holds the short list, and the
+        # hundred-language grid it used to need moved to the chooser dialog.
         combo.set_id_column(0)
-        combo.set_wrap_width(LANG_COLUMNS)
 
         renderer = Gtk.CellRendererText(
             ellipsize=Pango.EllipsizeMode.END, max_width_chars=LANG_WIDTH_CHARS)
         combo.pack_start(renderer, True)
         combo.add_attribute(renderer, "text", 1)
         return combo, store
+
+    def _visible_languages(self, current: str) -> list[tuple[str, str]]:
+        """What a selector shows without being asked for the full list: the
+        favourites, plus whatever it is currently set to — unstarring the
+        selected language must not leave its own selector unable to show it.
+        In LANGUAGES order, so starring never shuffles the rows around."""
+        keep = set(self._favorites) | {current}
+        return [entry for entry in translate_mod.LANGUAGES if entry[0] in keep]
+
+    def _fill_store(self, store, current: str, auto_row: bool):
+        store.clear()
+        if auto_row:
+            # Always row 0 of the source model: _set_detected relabels it there.
+            store.append([translate_mod.AUTO, self._auto_label()])
+        for code, name in self._visible_languages(current):
+            store.append([code, name])
+        store.append([SHOW_ALL, SHOW_ALL_LABEL])
+
+    def _reload_lang_models(self):
+        """Rebuild both short lists and put the selection back on them."""
+        self._syncing = True
+        self._fill_store(self._source_store, self._source, auto_row=True)
+        self._fill_store(self._target_store, self._target, auto_row=False)
+        self.combo_source.set_active_id(self._source)
+        self.combo_target.set_active_id(self._target)
+        self._syncing = False
 
     # ---- public API -------------------------------------------------
 
@@ -249,7 +275,7 @@ class TranslateView(Gtk.Box):
             # the selector, not by quietly translating somewhere else than what
             # the toolbar says. It can't loop: the new target is not the
             # detected language, so the next answer won't take this branch.
-            self._set_languages(self._source, self._alternate_to(self._target))
+            self._select_languages(self._source, self._alternate_to(self._target))
             self.translate_now()
             return False
 
@@ -289,32 +315,66 @@ class TranslateView(Gtk.Box):
             return translate_mod.DEFAULT_TARGET
         return translate_mod.ALTERNATE_TARGET
 
+    def _auto_label(self) -> str:
+        if self._detected:
+            return f"{AUTO_LABEL} · {translate_mod.language_name(self._detected)}"
+        return AUTO_LABEL
+
     def _set_detected(self, code: str | None):
         self._detected = code
-        label = AUTO_LABEL
-        if code:
-            label = f"{AUTO_LABEL} · {translate_mod.language_name(code)}"
-        self._source_store[0][1] = label
+        self._source_store[0][1] = self._auto_label()
         self._update_swap_sensitivity()
 
-    def _set_languages(self, source: str, target: str):
+    def _select_languages(self, source: str, target: str):
+        """Move the panel to a language pair, and remember it.
+
+        Picking a language by hand is what puts it in the short list, so the
+        models are refilled before the selection is applied to them — a language
+        that is not in a selector yet cannot be selected in it.
+        """
         self._source = source
         self._target = target
-        self._syncing = True
-        self.combo_source.set_active_id(source)
-        self.combo_target.set_active_id(target)
-        self._syncing = False
+        for code in (source, target):
+            if code != translate_mod.AUTO and code not in self._favorites:
+                self._favorites.append(code)
+        self._reload_lang_models()
         self._update_swap_sensitivity()
+        prefs.save(self._source, self._target, self._favorites)
 
     def _update_swap_sensitivity(self):
         # Swapping needs a concrete language to put in the target selector, and
         # "auto" is only one once something has been detected.
         self.btn_swap.set_sensitive(self._effective_source() is not None)
 
+    def _picked(self, combo) -> str | None:
+        """The language the user just chose in `combo`, or None if none was.
+
+        The "show all" row is not a language: it puts the selector back where it
+        was and hands over to the full chooser, whose answer takes its place.
+        """
+        code = combo.get_active_id()
+        if code != SHOW_ALL:
+            return code
+        self._reload_lang_models()
+        return self._open_chooser()
+
+    def _open_chooser(self) -> str | None:
+        parent = self.get_toplevel()
+        chooser = LanguageChooser(
+            parent if isinstance(parent, Gtk.Window) else None, self._favorites)
+        code = chooser.pick()
+        if list(chooser.favorites) != self._favorites:
+            # Starring stands on its own: it has to be kept even when the dialog
+            # was closed without picking a language.
+            self._favorites = list(chooser.favorites)
+            self._reload_lang_models()
+            prefs.save(self._source, self._target, self._favorites)
+        return code
+
     def _on_source_lang_changed(self, combo):
         if self._syncing:
             return
-        code = combo.get_active_id()
+        code = self._picked(combo)
         if code is None or code == self._source:
             return
         target = self._target
@@ -322,7 +382,7 @@ class TranslateView(Gtk.Box):
             # The same language on both sides would be asking Google for the
             # text back: the other selector moves out of the way.
             target = self._alternate_to(code)
-        self._set_languages(code, target)
+        self._select_languages(code, target)
         # Whatever was detected belongs to the previous answer.
         self._set_detected(None)
         self.translate_now()
@@ -330,7 +390,7 @@ class TranslateView(Gtk.Box):
     def _on_target_lang_changed(self, combo):
         if self._syncing:
             return
-        code = combo.get_active_id()
+        code = self._picked(combo)
         if code is None or code == self._target:
             return
         source = self._source
@@ -339,7 +399,7 @@ class TranslateView(Gtk.Box):
             # what it is, so detection is the only sensible source from here.
             source = translate_mod.AUTO
             self._set_detected(None)
-        self._set_languages(source, code)
+        self._select_languages(source, code)
         self.translate_now()
 
     # ---- toolbar actions ---------------------------------------------
@@ -357,7 +417,7 @@ class TranslateView(Gtk.Box):
         translation = self.get_translation()
         previous_source = self.get_source_text()
 
-        self._set_languages(self._target, source)
+        self._select_languages(self._target, source)
         self._set_detected(None)
         if translation:
             # The old source goes to the other side so the swap looks instant —

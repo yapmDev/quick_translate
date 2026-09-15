@@ -79,6 +79,52 @@
     background-color: mix(@theme_bg_color, @theme_fg_color, 0.08);
 }
 
+/* ============================================================
+   The full language list (language_chooser.py). A separate
+   toplevel, but the stylesheet is loaded for the whole screen,
+   so it is styled from here like everything else.
+   ============================================================ */
+#lang-chooser-body {
+    padding: 10px 10px 4px 10px;
+}
+
+#lang-search {
+    font-size: 12px;
+}
+
+#lang-list {
+    background-color: @theme_base_color;
+    border: 1px solid @borders;
+    border-radius: 5px;
+}
+
+#lang-row {
+    padding: 4px 4px 4px 10px;
+    font-size: 12px;
+}
+
+#lang-row:hover {
+    background-color: mix(@theme_bg_color, @theme_fg_color, 0.08);
+}
+
+/* Starred rows keep the accent; the empty star only shows up once the
+   row is worth looking at, so the list isn't a wall of outlines. */
+#btn-star {
+    color: mix(@theme_fg_color, @theme_bg_color, 0.55);
+    padding: 2px 6px;
+    min-height: 24px;
+    min-width: 24px;
+}
+
+#btn-star:checked {
+    color: @theme_selected_bg_color;
+    background-color: transparent;
+}
+
+#btn-star:hover {
+    color: @theme_selected_bg_color;
+}
+
 #status-label {
     color: mix(@theme_fg_color, @theme_bg_color, 0.55);
     font-size: 11px;
