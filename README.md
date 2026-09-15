@@ -1,6 +1,6 @@
 # quick-translate
 
-A lightweight EN↔ES translation panel for Linux/GNOME, backed by Google's
+A lightweight translation panel for Linux/GNOME, backed by Google's
 unofficial translation endpoint (the same one Crow Translate and Dialect use).
 Nothing is stored: no history, no cache, no settings.
 
@@ -10,9 +10,12 @@ Nothing is stored: no history, no cache, no settings.
 - Quick translate via hotkey (`SIGUSR1`) — raises the panel, pre-filled with
   the clipboard and translated on the spot whenever the copy is recent (under
   30 s); otherwise it opens untouched
-- Translates as you type (debounced), auto-detecting the direction
-- Direction button to swap: the translation becomes the text to translate, in
-  the opposite direction (`EN → ES` / `ES → EN`)
+- Translates as you type (debounced), detecting the source language
+- Every language the endpoint supports, picked in the toolbar: source selector,
+  swap button, target selector. The source selector also shows what was
+  detected (`Automático · Inglés`)
+- Swap button: the languages trade places and the translation becomes the text
+  to translate
 - Follows the system theme (GTK3)
 - systemd user service friendly
 

@@ -14,16 +14,18 @@
 }
 
 /* ============================================================
-   Shared control sizing — the one place to resize every action
-   control in the app. Icon-only buttons also share a fixed
-   width here; the direction button sizes to its own label.
+   Shared control sizing — the one place to resize every control
+   in the toolbar. Icon-only buttons also share a fixed width
+   here; the selectors size to the language name they show.
    ============================================================ */
 #btn-action,
-#btn-direction {
+#btn-swap,
+#lang-combo button {
     min-height: 28px;
 }
 
-#btn-action {
+#btn-action,
+#btn-swap {
     min-width: 28px;
 }
 
@@ -42,18 +44,39 @@
     border-color: @theme_selected_bg_color;
 }
 
-#btn-direction {
+/* The swap button is the toolbar's primary control: it carries the
+   accent the old direction button used to. */
+#btn-swap {
     background-color: @theme_selected_bg_color;
     color: @theme_selected_fg_color;
     border: 1px solid @borders;
-    border-radius: 8px;
-    padding: 0 14px;
-    font-size: 12px;
-    font-weight: bold;
+    border-radius: 5px;
+    padding: 0 8px;
 }
 
-#btn-direction:hover {
+#btn-swap:hover {
     background-color: shade(@theme_selected_bg_color, 1.15);
+}
+
+#btn-swap:disabled {
+    background-color: transparent;
+    color: mix(@theme_fg_color, @theme_bg_color, 0.7);
+    border-color: @borders;
+}
+
+/* GTK draws a combo as a button inside the widget, so the styling has
+   to go on that button rather than on #lang-combo itself. */
+#lang-combo button {
+    background-color: transparent;
+    color: @theme_fg_color;
+    border: 1px solid @borders;
+    border-radius: 5px;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+#lang-combo button:hover {
+    background-color: mix(@theme_bg_color, @theme_fg_color, 0.08);
 }
 
 #status-label {

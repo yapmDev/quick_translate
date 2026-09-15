@@ -34,15 +34,144 @@ COOLDOWN_S = 120
 # ever clears it: the process is long-lived.
 CACHE_MAX = 128
 
-# The only pair this app handles. "auto" means "detect, then translate into
-# whichever of the two the text is not".
-LANGUAGES = ("en", "es")
+AUTO = "auto"
+
+# Every language the endpoint takes, as (code, Spanish name), already in the
+# order the selectors show them (Spanish alphabetical) — a list this long is
+# read, not searched, so the order is part of the data rather than something
+# computed at build time. Codes are Google's, not ISO: "iw" for Hebrew, "jw"
+# for Javanese and "zh-CN"/"zh-TW" for Chinese are what the endpoint answers to.
+LANGUAGES = (
+    ("af", "Afrikáans"),
+    ("sq", "Albanés"),
+    ("de", "Alemán"),
+    ("am", "Amárico"),
+    ("ar", "Árabe"),
+    ("hy", "Armenio"),
+    ("az", "Azerbaiyano"),
+    ("bn", "Bengalí"),
+    ("be", "Bielorruso"),
+    ("my", "Birmano"),
+    ("bs", "Bosnio"),
+    ("bg", "Búlgaro"),
+    ("kn", "Canarés"),
+    ("ca", "Catalán"),
+    ("ceb", "Cebuano"),
+    ("cs", "Checo"),
+    ("ny", "Chichewa"),
+    ("zh-CN", "Chino (simplificado)"),
+    ("zh-TW", "Chino (tradicional)"),
+    ("si", "Cingalés"),
+    ("ko", "Coreano"),
+    ("co", "Corso"),
+    ("ht", "Criollo haitiano"),
+    ("hr", "Croata"),
+    ("da", "Danés"),
+    ("sk", "Eslovaco"),
+    ("sl", "Esloveno"),
+    ("es", "Español"),
+    ("eo", "Esperanto"),
+    ("et", "Estonio"),
+    ("eu", "Euskera"),
+    ("fi", "Finés"),
+    ("fr", "Francés"),
+    ("fy", "Frisón"),
+    ("gd", "Gaélico escocés"),
+    ("cy", "Galés"),
+    ("gl", "Gallego"),
+    ("ka", "Georgiano"),
+    ("el", "Griego"),
+    ("gu", "Guyaratí"),
+    ("ha", "Hausa"),
+    ("haw", "Hawaiano"),
+    ("iw", "Hebreo"),
+    ("hi", "Hindi"),
+    ("hmn", "Hmong"),
+    ("hu", "Húngaro"),
+    ("ig", "Igbo"),
+    ("id", "Indonesio"),
+    ("en", "Inglés"),
+    ("ga", "Irlandés"),
+    ("is", "Islandés"),
+    ("it", "Italiano"),
+    ("ja", "Japonés"),
+    ("jw", "Javanés"),
+    ("km", "Jemer"),
+    ("kk", "Kazajo"),
+    ("ky", "Kirguís"),
+    ("ku", "Kurdo"),
+    ("lo", "Lao"),
+    ("la", "Latín"),
+    ("lv", "Letón"),
+    ("lt", "Lituano"),
+    ("lb", "Luxemburgués"),
+    ("mk", "Macedonio"),
+    ("ml", "Malayalam"),
+    ("ms", "Malayo"),
+    ("mg", "Malgache"),
+    ("mt", "Maltés"),
+    ("mi", "Maorí"),
+    ("mr", "Maratí"),
+    ("mn", "Mongol"),
+    ("nl", "Neerlandés"),
+    ("ne", "Nepalí"),
+    ("no", "Noruego"),
+    ("or", "Oriya"),
+    ("pa", "Panyabí"),
+    ("ps", "Pastún"),
+    ("fa", "Persa"),
+    ("pl", "Polaco"),
+    ("pt", "Portugués"),
+    ("ro", "Rumano"),
+    ("ru", "Ruso"),
+    ("sm", "Samoano"),
+    ("sr", "Serbio"),
+    ("st", "Sesoto"),
+    ("sn", "Shona"),
+    ("sd", "Sindhi"),
+    ("so", "Somalí"),
+    ("sw", "Suajili"),
+    ("sv", "Sueco"),
+    ("tl", "Tagalo"),
+    ("th", "Tailandés"),
+    ("ta", "Tamil"),
+    ("tt", "Tártaro"),
+    ("tg", "Tayiko"),
+    ("te", "Telugu"),
+    ("tr", "Turco"),
+    ("tk", "Turcomano"),
+    ("uk", "Ucraniano"),
+    ("ug", "Uigur"),
+    ("ur", "Urdu"),
+    ("uz", "Uzbeko"),
+    ("vi", "Vietnamita"),
+    ("xh", "Xhosa"),
+    ("yi", "Yidis"),
+    ("yo", "Yoruba"),
+    ("zu", "Zulú"),
+)
+LANGUAGE_NAMES = dict(LANGUAGES)
+
+# Where the panel starts: detect the text, put it in Spanish. ALTERNATE_TARGET
+# is where it goes instead when detection comes back as the target itself —
+# translating Spanish into Spanish is a no-op, and "auto" means "get me out of
+# whatever this is" (see TranslateView._on_success, which owns that decision so
+# that the selectors always show the direction actually used).
+DEFAULT_SOURCE = AUTO
 DEFAULT_TARGET = "es"
+ALTERNATE_TARGET = "en"
+
+
+def language_name(code: str) -> str:
+    """Display name for a language code — the raw code if Google sent one we
+    don't list (its detector answers with codes the translator doesn't offer)."""
+    return LANGUAGE_NAMES.get(code, code.upper())
+
 
 # Touched from the worker threads in widgets.py, never under a lock: a dict
 # insert and a float assignment are each atomic, and the worst a race can do is
 # cache the same answer twice or push the cooldown out by a few milliseconds.
-_cache: dict[tuple[str, str], dict] = {}
+_cache: dict[tuple[str, str, str], dict] = {}
 _blocked_until = 0.0
 
 
@@ -102,7 +231,7 @@ def _request(text: str, source: str, target: str) -> tuple[str, str]:
     return "".join(chunks), detected
 
 
-def _remember(key: tuple[str, str], result: dict) -> dict:
+def _remember(key: tuple[str, str, str], result: dict) -> dict:
     _cache[key] = result
     if len(_cache) > CACHE_MAX:
         # Plain FIFO rather than LRU: dicts keep insertion order, and the whole
@@ -111,35 +240,24 @@ def _remember(key: tuple[str, str], result: dict) -> dict:
     return dict(result)
 
 
-def translate(text: str, source: str = "auto") -> dict:
-    """Translate between en/es. `source` is "auto", "en" or "es".
+def translate(text: str, source: str = AUTO, target: str = DEFAULT_TARGET) -> dict:
+    """Translate `text` from `source` (a language code or "auto") into `target`.
 
     Returns {"text", "source", "target"} where "source" is the language Google
-    actually detected — with "auto" that is the only way to know the direction
-    the translation went. Answers are cached, so asking twice costs one request.
+    actually detected — with "auto" that is the only way to know what was sent.
+    Answers are cached, so asking twice costs one request.
     """
     if not text.strip():
-        return {"text": "", "source": source, "target": DEFAULT_TARGET}
+        return {"text": "", "source": source, "target": target}
     if len(text) > MAX_CHARS:
         raise TranslationError(f"Texto demasiado largo (máx. {MAX_CHARS} caracteres)")
 
-    key = (text, source)
+    key = (text, source, target)
     cached = _cache.get(key)
     if cached is not None:
         # A copy: the caller owns what it gets and must not be able to edit the
         # cache by editing its result.
         return dict(cached)
 
-    if source in LANGUAGES:
-        target = "es" if source == "en" else "en"
-        translated, detected = _request(text, source, target)
-        return _remember(key, {"text": translated, "source": detected, "target": target})
-
-    # Auto: there is no detect-only endpoint worth a separate round trip, so
-    # translate into Spanish first and read the detected language off that
-    # answer. Only text that was already Spanish costs a second request.
-    translated, detected = _request(text, "auto", DEFAULT_TARGET)
-    if detected == "es":
-        translated, detected = _request(text, "es", "en")
-        return _remember(key, {"text": translated, "source": detected, "target": "en"})
-    return _remember(key, {"text": translated, "source": detected, "target": DEFAULT_TARGET})
+    translated, detected = _request(text, source, target)
+    return _remember(key, {"text": translated, "source": detected, "target": target})

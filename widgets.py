@@ -1,7 +1,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib, Pango
 import threading
 import translate as translate_mod
 
@@ -12,21 +12,31 @@ import translate as translate_mod
 # against whatever budget it is keeping.
 DEBOUNCE_MS = 800
 
-# The panel starts in "auto" and lands on a forced direction as soon as the
-# user swaps: the swapped text is a known language, so there is nothing left to
-# detect. Emptying the source box goes back to "auto".
-MODE_LABELS = {"auto": "Auto", "en": "EN → ES", "es": "ES → EN"}
+# Row 0 of the source selector. What Google detected is appended to it, so the
+# detection is visible without spending toolbar width on a second label.
+AUTO_LABEL = "Automático"
+# Longest language name is 20 characters and the auto row adds the detected one
+# on top of that; past this the name ellipsizes instead of widening the toolbar.
+LANG_WIDTH_CHARS = 20
+# A hundred languages in a single column is a scrollbar to nowhere, so the
+# popup lays them out as a grid.
+LANG_COLUMNS = 4
 
 
 class TranslateView(Gtk.Box):
-    """Source box, target box and a direction control — the whole app, really."""
+    """Source box, target box and the language toolbar — the whole app, really."""
 
     def __init__(self):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self._mode = "auto"
-        # (source, target) of the last translation that arrived — what the swap
-        # button needs to know which way the texts are currently facing.
-        self._detected: tuple[str, str] | None = None
+        self._source = translate_mod.DEFAULT_SOURCE
+        self._target = translate_mod.DEFAULT_TARGET
+        # The language the last answer was detected as. Only meaningful while
+        # the source is "auto", and the only thing that can turn that "auto"
+        # into a concrete language for the swap button.
+        self._detected: str | None = None
+        # Raised while the selectors are moved from code: they fire "changed"
+        # either way, and those handlers translate.
+        self._syncing = False
         self._debounce_timeout: int | None = None
         # Responses arrive out of order (a short text typed after a long one can
         # come back first), so every result carries the id of the request that
@@ -39,13 +49,28 @@ class TranslateView(Gtk.Box):
         toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         toolbar.set_name("toolbar")
 
-        self.btn_direction = Gtk.Button(label=MODE_LABELS[self._mode])
-        self.btn_direction.set_name("btn-direction")
-        self.btn_direction.set_tooltip_text("Invertir dirección e intercambiar textos")
-        self.btn_direction.connect("clicked", self._on_swap_direction)
+        self.combo_source, self._source_store = self._build_lang_combo(
+            ((translate_mod.AUTO, AUTO_LABEL),) + translate_mod.LANGUAGES,
+            "Idioma del texto original",
+        )
+        self.combo_source.set_active_id(self._source)
+        self.combo_source.connect("changed", self._on_source_lang_changed)
+
+        self.combo_target, _ = self._build_lang_combo(
+            translate_mod.LANGUAGES, "Idioma de la traducción")
+        self.combo_target.set_active_id(self._target)
+        self.combo_target.connect("changed", self._on_target_lang_changed)
+
+        self.btn_swap = Gtk.Button()
+        self.btn_swap.set_name("btn-swap")
+        self.btn_swap.add(Gtk.Image.new_from_icon_name(
+            "object-flip-horizontal-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
+        self.btn_swap.set_tooltip_text("Invertir idiomas e intercambiar textos")
+        self.btn_swap.connect("clicked", self._on_swap)
+        self._update_swap_sensitivity()
 
         # Transient status/error messages only: the direction that was actually
-        # used lives in the button itself.
+        # used lives in the selectors themselves.
         self.status_label = Gtk.Label(label="", xalign=1)
         self.status_label.set_name("status-label")
         self.status_label.set_ellipsize(3)
@@ -64,15 +89,20 @@ class TranslateView(Gtk.Box):
         self.btn_copy.set_tooltip_text("Copiar traducción")
         self.btn_copy.connect("clicked", self._on_copy)
 
-        # Direction on the left, status text on the right, actions dead center:
-        # set_center_widget is the only way to center against the toolbar itself
-        # rather than against whatever space the other two happen to leave.
-        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        actions.pack_start(self.btn_clear, False, False, 0)
-        actions.pack_start(self.btn_copy, False, False, 0)
+        # The languages sit dead center — set_center_widget is the only way to
+        # center against the toolbar itself rather than against whatever space
+        # the buttons happen to leave. Each action goes to the end it acts on:
+        # clear with the source box, copy with the translation.
+        languages = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        languages.pack_start(self.combo_source, False, False, 0)
+        languages.pack_start(self.btn_swap, False, False, 0)
+        languages.pack_start(self.combo_target, False, False, 0)
 
-        toolbar.pack_start(self.btn_direction, False, False, 0)
-        toolbar.set_center_widget(actions)
+        toolbar.pack_start(self.btn_clear, False, False, 0)
+        toolbar.set_center_widget(languages)
+        # pack_end stacks right to left: copy takes the very end and the status
+        # label fills what is left between the selectors and it.
+        toolbar.pack_end(self.btn_copy, False, False, 0)
         toolbar.pack_end(self.status_label, True, True, 0)
 
         source_scroll = Gtk.ScrolledWindow()
@@ -112,6 +142,27 @@ class TranslateView(Gtk.Box):
 
         self.pack_start(panes, True, True, 0)
         self.pack_start(toolbar, False, False, 0)
+
+    def _build_lang_combo(self, entries, tooltip: str):
+        """A selector over (code, name) rows. Returns the combo and its model —
+        the source one keeps the model around to relabel its "auto" row."""
+        store = Gtk.ListStore(str, str)
+        for code, name in entries:
+            store.append([code, name])
+
+        combo = Gtk.ComboBox.new_with_model(store)
+        combo.set_name("lang-combo")
+        combo.set_tooltip_text(tooltip)
+        # Column 0 is the language code, so the selection is read and written as
+        # a code (set_active_id/get_active_id) instead of as a row index.
+        combo.set_id_column(0)
+        combo.set_wrap_width(LANG_COLUMNS)
+
+        renderer = Gtk.CellRendererText(
+            ellipsize=Pango.EllipsizeMode.END, max_width_chars=LANG_WIDTH_CHARS)
+        combo.pack_start(renderer, True)
+        combo.add_attribute(renderer, "text", 1)
+        return combo, store
 
     # ---- public API -------------------------------------------------
 
@@ -162,23 +213,25 @@ class TranslateView(Gtk.Box):
         request_id = self._request_id
 
         if not text.strip():
-            self._set_target("")
+            self._set_translation("")
             self._set_status("")
-            # An empty box has no direction: back to detecting.
-            self._mode = "auto"
-            self._detected = None
-            self._set_direction_label()
+            # There is nothing left to have detected. The languages themselves
+            # stay put: they are a choice the user made in the selectors, not
+            # something the box implies.
+            self._set_detected(None)
             return False
 
         self._set_status("Traduciendo…")
         threading.Thread(
-            target=self._worker, args=(request_id, text, self._mode), daemon=True
+            target=self._worker,
+            args=(request_id, text, self._source, self._target),
+            daemon=True,
         ).start()
         return False
 
-    def _worker(self, request_id: int, text: str, mode: str):
+    def _worker(self, request_id: int, text: str, source: str, target: str):
         try:
-            result = translate_mod.translate(text, source=mode)
+            result = translate_mod.translate(text, source=source, target=target)
         except translate_mod.TranslationError as exc:
             GLib.idle_add(self._on_failure, request_id, str(exc))
             return
@@ -187,12 +240,21 @@ class TranslateView(Gtk.Box):
     def _on_success(self, request_id: int, result: dict):
         if request_id != self._request_id:
             return False
-        self._set_target(result["text"])
+        self._set_detected(result["source"])
+
+        if self._source == translate_mod.AUTO and result["source"] == self._target:
+            # Detection landed on the target itself, so what came back is the
+            # input again. "Auto" means "get me out of whatever this is", so the
+            # panel turns around and asks for the alternate target — by moving
+            # the selector, not by quietly translating somewhere else than what
+            # the toolbar says. It can't loop: the new target is not the
+            # detected language, so the next answer won't take this branch.
+            self._set_languages(self._source, self._alternate_to(self._target))
+            self.translate_now()
+            return False
+
+        self._set_translation(result["text"])
         self._set_status("")
-        self._detected = (result["source"], result["target"])
-        # Only "auto" leaves any doubt about which way the text went, so only
-        # then is the detected direction worth showing.
-        self._set_direction_label(detected=self._detected)
         return False
 
     def _on_failure(self, request_id: int, message: str):
@@ -201,14 +263,8 @@ class TranslateView(Gtk.Box):
         self._set_status(message, error=True)
         return False
 
-    def _set_target(self, text: str):
+    def _set_translation(self, text: str):
         self.target_view.get_buffer().set_text(text)
-
-    def _set_direction_label(self, detected: tuple[str, str] | None = None):
-        label = MODE_LABELS[self._mode]
-        if self._mode == "auto" and detected:
-            label = f"{label} ({detected[0].upper()} → {detected[1].upper()})"
-        self.btn_direction.set_label(label)
 
     def _set_status(self, text: str, error: bool = False):
         self.status_label.set_text(text)
@@ -218,31 +274,98 @@ class TranslateView(Gtk.Box):
         else:
             style.remove_class("status-error")
 
+    # ---- languages ---------------------------------------------------
+
+    def _effective_source(self) -> str | None:
+        """The language the source box is actually in — None while the panel is
+        set to detect and nothing has come back yet."""
+        if self._source != translate_mod.AUTO:
+            return self._source
+        return self._detected
+
+    def _alternate_to(self, code: str) -> str:
+        """Somewhere to translate into that isn't `code`."""
+        if code != translate_mod.DEFAULT_TARGET:
+            return translate_mod.DEFAULT_TARGET
+        return translate_mod.ALTERNATE_TARGET
+
+    def _set_detected(self, code: str | None):
+        self._detected = code
+        label = AUTO_LABEL
+        if code:
+            label = f"{AUTO_LABEL} · {translate_mod.language_name(code)}"
+        self._source_store[0][1] = label
+        self._update_swap_sensitivity()
+
+    def _set_languages(self, source: str, target: str):
+        self._source = source
+        self._target = target
+        self._syncing = True
+        self.combo_source.set_active_id(source)
+        self.combo_target.set_active_id(target)
+        self._syncing = False
+        self._update_swap_sensitivity()
+
+    def _update_swap_sensitivity(self):
+        # Swapping needs a concrete language to put in the target selector, and
+        # "auto" is only one once something has been detected.
+        self.btn_swap.set_sensitive(self._effective_source() is not None)
+
+    def _on_source_lang_changed(self, combo):
+        if self._syncing:
+            return
+        code = combo.get_active_id()
+        if code is None or code == self._source:
+            return
+        target = self._target
+        if code == target:
+            # The same language on both sides would be asking Google for the
+            # text back: the other selector moves out of the way.
+            target = self._alternate_to(code)
+        self._set_languages(code, target)
+        # Whatever was detected belongs to the previous answer.
+        self._set_detected(None)
+        self.translate_now()
+
+    def _on_target_lang_changed(self, combo):
+        if self._syncing:
+            return
+        code = combo.get_active_id()
+        if code is None or code == self._target:
+            return
+        source = self._source
+        if code == source:
+            # Translating into the language the box is set to be in: the text is
+            # what it is, so detection is the only sensible source from here.
+            source = translate_mod.AUTO
+            self._set_detected(None)
+        self._set_languages(source, code)
+        self.translate_now()
+
     # ---- toolbar actions ---------------------------------------------
 
-    def _on_swap_direction(self, _btn):
+    def _on_swap(self, _btn):
         """Turn the panel around: the translation becomes the text to translate.
 
         The new source text is in the language the last answer translated *to*,
-        so that language becomes the forced mode — no detection needed, and the
+        so that language becomes the source — no detection needed, and the
         result should read back roughly as what the user started from.
         """
+        source = self._effective_source()
+        if source is None:
+            return
         translation = self.get_translation()
-        if translation and self._detected:
-            self._mode = self._detected[1]
-            self._detected = None
-            previous_source = self.get_source_text()
-            # Refilling the box schedules a debounced translation; translate_now
-            # cancels that timer and fires the swapped direction right away. The
-            # old source goes to the other side so the swap looks instant — the
-            # real back-translation replaces it when it lands.
+        previous_source = self.get_source_text()
+
+        self._set_languages(self._target, source)
+        self._set_detected(None)
+        if translation:
+            # The old source goes to the other side so the swap looks instant —
+            # the real back-translation replaces it when it lands. Refilling the
+            # box schedules a debounced translation; translate_now cancels that
+            # timer and fires the new direction right away.
             self.set_source_text(translation)
-            self._set_target(previous_source)
-        else:
-            # Nothing translated yet, so there is nothing to swap — just flip
-            # which direction the next translation will be forced into.
-            self._mode = "es" if self._mode == "en" else "en"
-        self._set_direction_label()
+            self._set_translation(previous_source)
         self.translate_now()
 
     def _on_clear(self, _btn):
