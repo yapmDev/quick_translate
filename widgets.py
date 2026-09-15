@@ -72,7 +72,6 @@ class TranslateView(Gtk.Box):
             "object-flip-horizontal-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
         self.btn_swap.set_tooltip_text("Invertir idiomas e intercambiar textos")
         self.btn_swap.connect("clicked", self._on_swap)
-        self._update_swap_sensitivity()
 
         # Transient status/error messages only: the direction that was actually
         # used lives in the selectors themselves.
@@ -102,6 +101,16 @@ class TranslateView(Gtk.Box):
             "edit-copy-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
         self.btn_copy.set_tooltip_text("Copiar traducción")
         self.btn_copy.connect("clicked", self._on_copy)
+
+        # Every action here is conditional (see _update_actions), so none of
+        # them may be turned on by the panel's show_all: their visibility is
+        # decided by the state of the boxes, not by the window coming up.
+        # show_all stops at a no-show-all widget instead of descending into it,
+        # so the icon inside each button has to be shown by hand — otherwise the
+        # button comes up empty the moment _update_actions reveals it.
+        for button in (self.btn_clear, self.btn_swap, self.btn_speak, self.btn_copy):
+            button.set_no_show_all(True)
+            button.get_child().show()
 
         # The languages sit dead center — set_center_widget is the only way to
         # center against the toolbar itself rather than against whatever space
@@ -159,9 +168,9 @@ class TranslateView(Gtk.Box):
         self.pack_start(panes, True, True, 0)
         self.pack_start(toolbar, False, False, 0)
 
-        # Both read the target box, so they wait until it exists.
+        # Reads both boxes, so it waits until they exist.
         self._sync_speak_button()
-        self._update_speak_sensitivity()
+        self._update_actions()
 
     def _build_lang_combo(self, tooltip: str):
         """An empty selector over (code, name) rows, filled by _fill_store: the
@@ -241,6 +250,9 @@ class TranslateView(Gtk.Box):
     # ---- translation flow -------------------------------------------
 
     def _on_source_changed(self, _buf):
+        # Not debounced: the button follows the text on screen, not the
+        # translation the text will eventually ask for.
+        self._update_actions()
         self._cancel_pending()
         self._debounce_timeout = GLib.timeout_add(DEBOUNCE_MS, self._run_translation)
 
@@ -314,7 +326,7 @@ class TranslateView(Gtk.Box):
         # so a new translation silences it: the box and the speakers must not
         # disagree. It also drops any audio still on its way.
         self.stop_audio()
-        self._update_speak_sensitivity()
+        self._update_actions()
 
     def _set_status(self, text: str, error: bool = False):
         self.status_label.set_text(text)
@@ -347,7 +359,7 @@ class TranslateView(Gtk.Box):
     def _set_detected(self, code: str | None):
         self._detected = code
         self._source_store[0][1] = self._auto_label()
-        self._update_swap_sensitivity()
+        self._update_actions()
 
     def _select_languages(self, source: str, target: str):
         """Move the panel to a language pair, and remember it.
@@ -362,14 +374,27 @@ class TranslateView(Gtk.Box):
             if code != translate_mod.AUTO and code not in self._favorites:
                 self._favorites.append(code)
         self._reload_lang_models()
-        self._update_swap_sensitivity()
-        self._update_speak_sensitivity()
+        self._update_actions()
         prefs.save(self._source, self._target, self._favorites)
 
-    def _update_swap_sensitivity(self):
+    def _update_actions(self):
+        """Show each action only where it would do something.
+
+        A button that is there but does nothing — clear on an empty box, copy
+        on an empty translation — is a thing to read and decide about every
+        time the panel opens, and a greyed-out one is the same cost without
+        even the possibility of a click. The toolbar is small enough that the
+        buttons appearing as they become usable reads as the panel following
+        along rather than as things moving around.
+        """
+        self.btn_clear.set_visible(bool(self.get_source_text()))
         # Swapping needs a concrete language to put in the target selector, and
         # "auto" is only one once something has been detected.
-        self.btn_swap.set_sensitive(self._effective_source() is not None)
+        self.btn_swap.set_visible(self._effective_source() is not None)
+        translation = bool(self.get_translation().strip())
+        self.btn_copy.set_visible(translation)
+        # Nothing to read out, or a target language Google has no voice for.
+        self.btn_speak.set_visible(translation and tts.has_voice(self._target))
 
     def _picked(self, combo) -> str | None:
         """The language the user just chose in `combo`, or None if none was.
@@ -508,7 +533,7 @@ class TranslateView(Gtk.Box):
             return False
         self._set_status(message, error=True)
         # A language that turned out to have no voice takes the button with it.
-        self._update_speak_sensitivity()
+        self._update_actions()
         return False
 
     def _on_playback_done(self, error: str | None):
@@ -522,8 +547,3 @@ class TranslateView(Gtk.Box):
             "media-playback-stop-symbolic" if playing else "audio-volume-high-symbolic",
             Gtk.IconSize.SMALL_TOOLBAR)
         self.btn_speak.set_tooltip_text("Detener" if playing else "Escuchar traducción")
-
-    def _update_speak_sensitivity(self):
-        # Nothing to read out, or a target language Google has no voice for.
-        self.btn_speak.set_sensitive(
-            bool(self.get_translation().strip()) and tts.has_voice(self._target))
