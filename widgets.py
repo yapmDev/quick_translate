@@ -5,6 +5,7 @@ from gi.repository import Gtk, Gdk, GLib, Pango
 import threading
 import prefs
 import translate as translate_mod
+import tts
 from language_chooser import LanguageChooser
 
 # Typing keeps firing "changed"; a translation is a network round trip, so the
@@ -47,6 +48,9 @@ class TranslateView(Gtk.Box):
         # come back first), so every result carries the id of the request that
         # asked for it and anything but the newest is dropped.
         self._request_id = 0
+        # The same rule for the audio of a translation: the text can change
+        # while its MP3 is still downloading.
+        self._speech_id = 0
 
         self._build_ui()
 
@@ -83,6 +87,15 @@ class TranslateView(Gtk.Box):
         self.btn_clear.set_tooltip_text("Limpiar")
         self.btn_clear.connect("clicked", self._on_clear)
 
+        # Play/stop in one button: there is one translation on screen, so there
+        # is never a second sound to choose between.
+        self.btn_speak = Gtk.Button()
+        self.btn_speak.set_name("btn-action")
+        self._speak_icon = Gtk.Image.new_from_icon_name(
+            "audio-volume-high-symbolic", Gtk.IconSize.SMALL_TOOLBAR)
+        self.btn_speak.add(self._speak_icon)
+        self.btn_speak.connect("clicked", self._on_speak)
+
         self.btn_copy = Gtk.Button()
         self.btn_copy.set_name("btn-action")
         self.btn_copy.add(Gtk.Image.new_from_icon_name(
@@ -101,9 +114,11 @@ class TranslateView(Gtk.Box):
 
         toolbar.pack_start(self.btn_clear, False, False, 0)
         toolbar.set_center_widget(languages)
-        # pack_end stacks right to left: copy takes the very end and the status
-        # label fills what is left between the selectors and it.
+        # pack_end stacks right to left: copy takes the very end, listening
+        # sits next to it (both act on the translation) and the status label
+        # fills what is left between the selectors and them.
         toolbar.pack_end(self.btn_copy, False, False, 0)
+        toolbar.pack_end(self.btn_speak, False, False, 0)
         toolbar.pack_end(self.status_label, True, True, 0)
 
         source_scroll = Gtk.ScrolledWindow()
@@ -143,6 +158,10 @@ class TranslateView(Gtk.Box):
 
         self.pack_start(panes, True, True, 0)
         self.pack_start(toolbar, False, False, 0)
+
+        # Both read the target box, so they wait until it exists.
+        self._sync_speak_button()
+        self._update_speak_sensitivity()
 
     def _build_lang_combo(self, tooltip: str):
         """An empty selector over (code, name) rows, filled by _fill_store: the
@@ -291,6 +310,11 @@ class TranslateView(Gtk.Box):
 
     def _set_translation(self, text: str):
         self.target_view.get_buffer().set_text(text)
+        # Whatever is playing belongs to the text that was there a moment ago,
+        # so a new translation silences it: the box and the speakers must not
+        # disagree. It also drops any audio still on its way.
+        self.stop_audio()
+        self._update_speak_sensitivity()
 
     def _set_status(self, text: str, error: bool = False):
         self.status_label.set_text(text)
@@ -339,6 +363,7 @@ class TranslateView(Gtk.Box):
                 self._favorites.append(code)
         self._reload_lang_models()
         self._update_swap_sensitivity()
+        self._update_speak_sensitivity()
         prefs.save(self._source, self._target, self._favorites)
 
     def _update_swap_sensitivity(self):
@@ -435,3 +460,70 @@ class TranslateView(Gtk.Box):
     def _on_copy(self, _btn):
         if self.copy_translation():
             self._set_status("Traducción copiada")
+
+    # ---- speech -------------------------------------------------------
+
+    def stop_audio(self):
+        """Silence the panel, and drop any audio still downloading."""
+        self._speech_id += 1
+        tts.stop()
+        self._sync_speak_button()
+
+    def _on_speak(self, _btn):
+        if tts.is_playing():
+            self.stop_audio()
+            self._set_status("")
+            return
+        text = self.get_translation().strip()
+        if not text:
+            return
+        self._speech_id += 1
+        speech_id = self._speech_id
+        self._set_status("Generando audio…")
+        threading.Thread(
+            target=self._speech_worker,
+            args=(speech_id, text, self._target),
+            daemon=True,
+        ).start()
+
+    def _speech_worker(self, speech_id: int, text: str, lang: str):
+        try:
+            data = tts.audio(text, lang)
+        except tts.SpeechError as exc:
+            GLib.idle_add(self._on_speech_failure, speech_id, str(exc))
+            return
+        GLib.idle_add(self._on_audio, speech_id, data)
+
+    def _on_audio(self, speech_id: int, data: bytes):
+        if speech_id != self._speech_id:
+            # The translation moved on while this was downloading.
+            return False
+        self._set_status("")
+        tts.play(data, self._on_playback_done)
+        self._sync_speak_button()
+        return False
+
+    def _on_speech_failure(self, speech_id: int, message: str):
+        if speech_id != self._speech_id:
+            return False
+        self._set_status(message, error=True)
+        # A language that turned out to have no voice takes the button with it.
+        self._update_speak_sensitivity()
+        return False
+
+    def _on_playback_done(self, error: str | None):
+        if error:
+            self._set_status(error, error=True)
+        self._sync_speak_button()
+
+    def _sync_speak_button(self):
+        playing = tts.is_playing()
+        self._speak_icon.set_from_icon_name(
+            "media-playback-stop-symbolic" if playing else "audio-volume-high-symbolic",
+            Gtk.IconSize.SMALL_TOOLBAR)
+        self.btn_speak.set_tooltip_text("Detener" if playing else "Escuchar traducción")
+
+    def _update_speak_sensitivity(self):
+        # Nothing to read out, or a target language Google has no voice for.
+        self.btn_speak.set_sensitive(
+            bool(self.get_translation().strip()) and tts.has_voice(self._target))

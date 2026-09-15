@@ -22,6 +22,9 @@ file — only the panel's geometry and your language choices.
   (`~/.config/quick_translate/languages.json`)
 - Swap button: the languages trade places and the translation becomes the text
   to translate
+- Listen to the translation — click the speaker to hear it read out in the
+  target language (the button turns into a stop while it plays). Not every
+  language has a voice; the button goes dim for the ones that don't
 - Follows the system theme (GTK3)
 - systemd user service friendly
 
@@ -29,6 +32,8 @@ file — only the panel's geometry and your language choices.
 
 - Linux / GNOME, X11 or XWayland
 - Python 3.12+, PyGObject (`gi`), GTK 3, `gir1.2-ayatanaappindicator3-0.1`
+- To listen to translations: GStreamer — `gir1.2-gstreamer-1.0` and
+  `gstreamer1.0-plugins-good`
 - An internet connection (no API key needed)
 
 ## Run

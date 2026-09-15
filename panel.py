@@ -90,7 +90,10 @@ class TranslatorPanel(Gtk.Window):
 
     def _hide(self):
         # Dismissing the panel is the moment its geometry becomes "the last one
-        # the user chose" — every hide path goes through here.
+        # the user chose" — every hide path goes through here. It is also the
+        # only place audio has to be silenced: a panel that is gone must not
+        # still be talking.
+        self.view.stop_audio()
         self.save_geometry()
         self._hidden_at = time.monotonic()
         self.hide()

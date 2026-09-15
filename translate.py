@@ -195,21 +195,30 @@ class TranslationError(Exception):
     pass
 
 
-def _cooldown_left() -> int:
-    """Seconds until the endpoint may be asked again — 0 when it is free."""
+def cooldown_left() -> int:
+    """Seconds until Google may be asked again — 0 when it is free."""
     return max(0, round(_blocked_until - time.monotonic()))
 
 
-def _rate_limit_message(seconds: int) -> str:
+def note_rate_limit() -> int:
+    """Arm the cooldown after a 429 and answer how long it lasts.
+
+    Public because the window is not this endpoint's: the block travels with
+    CLIENT and tts.py sends the same id, so both arm and respect this one.
+    """
+    global _blocked_until
+    _blocked_until = time.monotonic() + COOLDOWN_S
+    return COOLDOWN_S
+
+
+def rate_limit_message(seconds: int) -> str:
     return f"Google limitó las peticiones — reintenta en {seconds} s"
 
 
 def _request(text: str, source: str, target: str) -> tuple[str, str]:
-    global _blocked_until
-
-    waiting = _cooldown_left()
+    waiting = cooldown_left()
     if waiting:
-        raise TranslationError(_rate_limit_message(waiting))
+        raise TranslationError(rate_limit_message(waiting))
 
     params = {
         "client": CLIENT,
@@ -227,8 +236,7 @@ def _request(text: str, source: str, target: str) -> tuple[str, str]:
             payload = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         if exc.code == 429:
-            _blocked_until = time.monotonic() + COOLDOWN_S
-            raise TranslationError(_rate_limit_message(COOLDOWN_S)) from exc
+            raise TranslationError(rate_limit_message(note_rate_limit())) from exc
         raise TranslationError(f"Google respondió {exc.code}") from exc
     except (urllib.error.URLError, TimeoutError) as exc:
         raise TranslationError("Sin conexión con Google") from exc
