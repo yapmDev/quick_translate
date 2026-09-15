@@ -16,8 +16,10 @@ from language_chooser import LanguageChooser
 DEBOUNCE_MS = 800
 
 # Row 0 of the source selector. What Google detected is appended to it, so the
-# detection is visible without spending toolbar width on a second label.
+# detection is visible without spending toolbar width on a second label — and
+# once there is a name to append, the word shortens to make room for it.
 AUTO_LABEL = "Automatic"
+AUTO_SHORT_LABEL = "Auto"
 # Longest language name is 21 characters and the auto row adds the detected one
 # on top of that; past this the name ellipsizes instead of widening the toolbar.
 LANG_WIDTH_CHARS = 21
@@ -65,6 +67,15 @@ class TranslateView(Gtk.Box):
         self._reload_lang_models()
         self.combo_source.connect("changed", self._on_source_lang_changed)
         self.combo_target.connect("changed", self._on_target_lang_changed)
+        # The swap button sits between the two selectors, so it only lands on
+        # the center of the toolbar while they are the same width — otherwise
+        # the wider one (usually the source: its rows carry the detected
+        # language too) pushes the button off to one side, and it moves again
+        # every time a longer name is selected. A size group gives both of them
+        # the wider one's width, which is what keeps the button fixed.
+        self._lang_sizes = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)
+        self._lang_sizes.add_widget(self.combo_source)
+        self._lang_sizes.add_widget(self.combo_target)
 
         self.btn_swap = Gtk.Button()
         self.btn_swap.set_name("btn-swap")
@@ -353,7 +364,8 @@ class TranslateView(Gtk.Box):
 
     def _auto_label(self) -> str:
         if self._detected:
-            return f"{AUTO_LABEL} · {translate_mod.language_name(self._detected)}"
+            return (f"{AUTO_SHORT_LABEL} · "
+                    f"{translate_mod.language_name(self._detected)}")
         return AUTO_LABEL
 
     def _set_detected(self, code: str | None):
