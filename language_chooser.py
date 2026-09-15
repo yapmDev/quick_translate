@@ -1,6 +1,7 @@
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Pango
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gtk, Gdk, Pango
 import translate as translate_mod
 
 STAR_ON = "starred-symbolic"
@@ -60,6 +61,7 @@ class LanguageChooser(Gtk.Dialog):
         body.pack_start(scroll, True, True, 0)
 
         self.add_button("Cerrar", Gtk.ResponseType.CLOSE)
+        self.connect("key-press-event", self._on_key_press)
 
     def _build_row(self, code: str, name: str) -> Gtk.ListBoxRow:
         starred = code in self.favorites
@@ -98,6 +100,16 @@ class LanguageChooser(Gtk.Dialog):
         return self.chosen
 
     # ---- events -------------------------------------------------------
+
+    def _on_key_press(self, _widget, event):
+        # The toplevel sees the key before the focused widget does, which is the
+        # whole point: Gtk.SearchEntry answers Escape by clearing its own text,
+        # so without this Escape never reaches the dialog while the search box
+        # has the focus it is given on open.
+        if event.keyval == Gdk.KEY_Escape:
+            self.response(Gtk.ResponseType.CLOSE)
+            return True
+        return False
 
     def _filter_row(self, row: Gtk.ListBoxRow) -> bool:
         return translate_mod.language_matches(self._codes[row], self._query)
