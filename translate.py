@@ -37,119 +37,119 @@ CACHE_MAX = 128
 
 AUTO = "auto"
 
-# Every language the endpoint takes, as (code, Spanish name), already in the
-# order the selectors show them (Spanish alphabetical) — a list this long is
-# read, not searched, so the order is part of the data rather than something
-# computed at build time. Codes are Google's, not ISO: "iw" for Hebrew, "jw"
-# for Javanese and "zh-CN"/"zh-TW" for Chinese are what the endpoint answers to.
+# Every language the endpoint takes, as (code, English name), already in the
+# order the selectors show them (alphabetical) — a list this long is read, not
+# searched, so the order is part of the data rather than something computed at
+# build time. Codes are Google's, not ISO: "iw" for Hebrew, "jw" for Javanese
+# and "zh-CN"/"zh-TW" for Chinese are what the endpoint answers to.
 LANGUAGES = (
-    ("af", "Afrikáans"),
-    ("sq", "Albanés"),
-    ("de", "Alemán"),
-    ("am", "Amárico"),
-    ("ar", "Árabe"),
-    ("hy", "Armenio"),
-    ("az", "Azerbaiyano"),
-    ("bn", "Bengalí"),
-    ("be", "Bielorruso"),
-    ("my", "Birmano"),
-    ("bs", "Bosnio"),
-    ("bg", "Búlgaro"),
-    ("kn", "Canarés"),
-    ("ca", "Catalán"),
+    ("af", "Afrikaans"),
+    ("sq", "Albanian"),
+    ("am", "Amharic"),
+    ("ar", "Arabic"),
+    ("hy", "Armenian"),
+    ("az", "Azerbaijani"),
+    ("eu", "Basque"),
+    ("be", "Belarusian"),
+    ("bn", "Bengali"),
+    ("bs", "Bosnian"),
+    ("bg", "Bulgarian"),
+    ("my", "Burmese"),
+    ("ca", "Catalan"),
     ("ceb", "Cebuano"),
-    ("cs", "Checo"),
     ("ny", "Chichewa"),
-    ("zh-CN", "Chino (simplificado)"),
-    ("zh-TW", "Chino (tradicional)"),
-    ("si", "Cingalés"),
-    ("ko", "Coreano"),
-    ("co", "Corso"),
-    ("ht", "Criollo haitiano"),
-    ("hr", "Croata"),
-    ("da", "Danés"),
-    ("sk", "Eslovaco"),
-    ("sl", "Esloveno"),
-    ("es", "Español"),
+    ("zh-CN", "Chinese (Simplified)"),
+    ("zh-TW", "Chinese (Traditional)"),
+    ("co", "Corsican"),
+    ("hr", "Croatian"),
+    ("cs", "Czech"),
+    ("da", "Danish"),
+    ("nl", "Dutch"),
+    ("en", "English"),
     ("eo", "Esperanto"),
-    ("et", "Estonio"),
-    ("eu", "Euskera"),
-    ("fi", "Finés"),
-    ("fr", "Francés"),
-    ("fy", "Frisón"),
-    ("gd", "Gaélico escocés"),
-    ("cy", "Galés"),
-    ("gl", "Gallego"),
-    ("ka", "Georgiano"),
-    ("el", "Griego"),
-    ("gu", "Guyaratí"),
+    ("et", "Estonian"),
+    ("fi", "Finnish"),
+    ("fr", "French"),
+    ("fy", "Frisian"),
+    ("gl", "Galician"),
+    ("ka", "Georgian"),
+    ("de", "German"),
+    ("el", "Greek"),
+    ("gu", "Gujarati"),
+    ("ht", "Haitian Creole"),
     ("ha", "Hausa"),
-    ("haw", "Hawaiano"),
-    ("iw", "Hebreo"),
+    ("haw", "Hawaiian"),
+    ("iw", "Hebrew"),
     ("hi", "Hindi"),
     ("hmn", "Hmong"),
-    ("hu", "Húngaro"),
+    ("hu", "Hungarian"),
+    ("is", "Icelandic"),
     ("ig", "Igbo"),
-    ("id", "Indonesio"),
-    ("en", "Inglés"),
-    ("ga", "Irlandés"),
-    ("is", "Islandés"),
-    ("it", "Italiano"),
-    ("ja", "Japonés"),
-    ("jw", "Javanés"),
-    ("km", "Jemer"),
-    ("kk", "Kazajo"),
-    ("ky", "Kirguís"),
-    ("ku", "Kurdo"),
+    ("id", "Indonesian"),
+    ("ga", "Irish"),
+    ("it", "Italian"),
+    ("ja", "Japanese"),
+    ("jw", "Javanese"),
+    ("kn", "Kannada"),
+    ("kk", "Kazakh"),
+    ("km", "Khmer"),
+    ("ko", "Korean"),
+    ("ku", "Kurdish"),
+    ("ky", "Kyrgyz"),
     ("lo", "Lao"),
-    ("la", "Latín"),
-    ("lv", "Letón"),
-    ("lt", "Lituano"),
-    ("lb", "Luxemburgués"),
-    ("mk", "Macedonio"),
+    ("la", "Latin"),
+    ("lv", "Latvian"),
+    ("lt", "Lithuanian"),
+    ("lb", "Luxembourgish"),
+    ("mk", "Macedonian"),
+    ("mg", "Malagasy"),
+    ("ms", "Malay"),
     ("ml", "Malayalam"),
-    ("ms", "Malayo"),
-    ("mg", "Malgache"),
-    ("mt", "Maltés"),
-    ("mi", "Maorí"),
-    ("mr", "Maratí"),
-    ("mn", "Mongol"),
-    ("nl", "Neerlandés"),
-    ("ne", "Nepalí"),
-    ("no", "Noruego"),
+    ("mt", "Maltese"),
+    ("mi", "Maori"),
+    ("mr", "Marathi"),
+    ("mn", "Mongolian"),
+    ("ne", "Nepali"),
+    ("no", "Norwegian"),
     ("or", "Oriya"),
-    ("pa", "Panyabí"),
-    ("ps", "Pastún"),
-    ("fa", "Persa"),
-    ("pl", "Polaco"),
-    ("pt", "Portugués"),
-    ("ro", "Rumano"),
-    ("ru", "Ruso"),
-    ("sm", "Samoano"),
-    ("sr", "Serbio"),
-    ("st", "Sesoto"),
+    ("ps", "Pashto"),
+    ("fa", "Persian"),
+    ("pl", "Polish"),
+    ("pt", "Portuguese"),
+    ("pa", "Punjabi"),
+    ("ro", "Romanian"),
+    ("ru", "Russian"),
+    ("sm", "Samoan"),
+    ("gd", "Scottish Gaelic"),
+    ("sr", "Serbian"),
+    ("st", "Sesotho"),
     ("sn", "Shona"),
     ("sd", "Sindhi"),
-    ("so", "Somalí"),
-    ("sw", "Suajili"),
-    ("sv", "Sueco"),
-    ("tl", "Tagalo"),
-    ("th", "Tailandés"),
+    ("si", "Sinhala"),
+    ("sk", "Slovak"),
+    ("sl", "Slovenian"),
+    ("so", "Somali"),
+    ("es", "Spanish"),
+    ("sw", "Swahili"),
+    ("sv", "Swedish"),
+    ("tl", "Tagalog"),
+    ("tg", "Tajik"),
     ("ta", "Tamil"),
-    ("tt", "Tártaro"),
-    ("tg", "Tayiko"),
+    ("tt", "Tatar"),
     ("te", "Telugu"),
-    ("tr", "Turco"),
-    ("tk", "Turcomano"),
-    ("uk", "Ucraniano"),
-    ("ug", "Uigur"),
+    ("th", "Thai"),
+    ("tr", "Turkish"),
+    ("tk", "Turkmen"),
+    ("uk", "Ukrainian"),
     ("ur", "Urdu"),
-    ("uz", "Uzbeko"),
-    ("vi", "Vietnamita"),
+    ("ug", "Uyghur"),
+    ("uz", "Uzbek"),
+    ("vi", "Vietnamese"),
+    ("cy", "Welsh"),
     ("xh", "Xhosa"),
-    ("yi", "Yidis"),
+    ("yi", "Yiddish"),
     ("yo", "Yoruba"),
-    ("zu", "Zulú"),
+    ("zu", "Zulu"),
 )
 LANGUAGE_NAMES = dict(LANGUAGES)
 
@@ -170,7 +170,9 @@ def language_name(code: str) -> str:
 
 
 def _fold(text: str) -> str:
-    """Lowercased and stripped of accents, so "aleman" can find "Alemán"."""
+    """Lowercased and stripped of accents, so a query typed without them still
+    matches — the names are English, but the codes and the user are not bound
+    to be."""
     decomposed = unicodedata.normalize("NFD", text.casefold())
     return "".join(c for c in decomposed if not unicodedata.combining(c))
 
@@ -212,7 +214,7 @@ def note_rate_limit() -> int:
 
 
 def rate_limit_message(seconds: int) -> str:
-    return f"Google limitó las peticiones — reintenta en {seconds} s"
+    return f"Google rate-limited us — retry in {seconds} s"
 
 
 def _request(text: str, source: str, target: str) -> tuple[str, str]:
@@ -237,11 +239,11 @@ def _request(text: str, source: str, target: str) -> tuple[str, str]:
     except urllib.error.HTTPError as exc:
         if exc.code == 429:
             raise TranslationError(rate_limit_message(note_rate_limit())) from exc
-        raise TranslationError(f"Google respondió {exc.code}") from exc
+        raise TranslationError(f"Google answered {exc.code}") from exc
     except (urllib.error.URLError, TimeoutError) as exc:
-        raise TranslationError("Sin conexión con Google") from exc
+        raise TranslationError("No connection to Google") from exc
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise TranslationError("Respuesta inesperada de Google") from exc
+        raise TranslationError("Unexpected answer from Google") from exc
 
     try:
         # payload[0] is a list of [translated_chunk, original_chunk, ...] pieces
@@ -250,7 +252,7 @@ def _request(text: str, source: str, target: str) -> tuple[str, str]:
         chunks = [chunk[0] for chunk in payload[0] if chunk and chunk[0]]
         detected = payload[2] or source
     except (IndexError, TypeError) as exc:
-        raise TranslationError("Respuesta inesperada de Google") from exc
+        raise TranslationError("Unexpected answer from Google") from exc
 
     return "".join(chunks), detected
 
@@ -274,7 +276,7 @@ def translate(text: str, source: str = AUTO, target: str = DEFAULT_TARGET) -> di
     if not text.strip():
         return {"text": "", "source": source, "target": target}
     if len(text) > MAX_CHARS:
-        raise TranslationError(f"Texto demasiado largo (máx. {MAX_CHARS} caracteres)")
+        raise TranslationError(f"Text too long (max. {MAX_CHARS} characters)")
 
     key = (text, source, target)
     cached = _cache.get(key)

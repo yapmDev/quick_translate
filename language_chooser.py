@@ -20,7 +20,7 @@ class LanguageChooser(Gtk.Dialog):
 
     def __init__(self, parent, favorites):
         super().__init__(
-            title="Idiomas", transient_for=parent, modal=True, destroy_with_parent=True)
+            title="Languages", transient_for=parent, modal=True, destroy_with_parent=True)
         self.set_name("lang-chooser")
         self.set_default_size(300, 420)
         self.favorites = list(dict.fromkeys(favorites))
@@ -34,7 +34,7 @@ class LanguageChooser(Gtk.Dialog):
     def _build_ui(self):
         self.search = Gtk.SearchEntry()
         self.search.set_name("lang-search")
-        self.search.set_placeholder_text("Buscar idioma")
+        self.search.set_placeholder_text("Search language")
         self.search.connect("search-changed", self._on_search_changed)
         # Enter takes whatever the search narrowed the list down to, so a
         # language is three keystrokes away without touching the mouse.
@@ -60,7 +60,7 @@ class LanguageChooser(Gtk.Dialog):
         body.pack_start(self.search, False, False, 0)
         body.pack_start(scroll, True, True, 0)
 
-        self.add_button("Cerrar", Gtk.ResponseType.CLOSE)
+        self.add_button("Close", Gtk.ResponseType.CLOSE)
         self.connect("key-press-event", self._on_key_press)
 
     def _build_row(self, code: str, name: str) -> Gtk.ListBoxRow:
@@ -72,7 +72,7 @@ class LanguageChooser(Gtk.Dialog):
         star.add(Gtk.Image.new_from_icon_name(
             STAR_ON if starred else STAR_OFF, Gtk.IconSize.SMALL_TOOLBAR))
         star.set_active(starred)
-        star.set_tooltip_text("Mantener en el selector")
+        star.set_tooltip_text("Keep in the selector")
         star.connect("toggled", self._on_star_toggled, code)
 
         label = Gtk.Label(label=name, xalign=0)

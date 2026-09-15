@@ -101,7 +101,7 @@ def audio(text: str, lang: str) -> bytes:
     if not text:
         return b""
     if len(text) > MAX_CHARS:
-        raise SpeechError(f"Texto demasiado largo para escuchar (máx. {MAX_CHARS} caracteres)")
+        raise SpeechError(f"Text too long to read out (max. {MAX_CHARS} characters)")
 
     key = (text, lang)
     cached = _cache.get(key)
@@ -150,10 +150,10 @@ def _fetch(chunk: str, lang: str) -> bytes:
             # well formed and the language is what is left to blame.
             _voiceless.add(lang)
             raise SpeechError(
-                f"{translate_mod.language_name(lang)} no tiene voz disponible") from exc
-        raise SpeechError(f"Google respondió {exc.code}") from exc
+                f"No voice available for {translate_mod.language_name(lang)}") from exc
+        raise SpeechError(f"Google answered {exc.code}") from exc
     except (urllib.error.URLError, TimeoutError) as exc:
-        raise SpeechError("Sin conexión con Google") from exc
+        raise SpeechError("No connection to Google") from exc
 
 
 # ---- playback --------------------------------------------------------

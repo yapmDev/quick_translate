@@ -17,15 +17,15 @@ DEBOUNCE_MS = 800
 
 # Row 0 of the source selector. What Google detected is appended to it, so the
 # detection is visible without spending toolbar width on a second label.
-AUTO_LABEL = "Automático"
-# Longest language name is 20 characters and the auto row adds the detected one
+AUTO_LABEL = "Automatic"
+# Longest language name is 21 characters and the auto row adds the detected one
 # on top of that; past this the name ellipsizes instead of widening the toolbar.
-LANG_WIDTH_CHARS = 20
+LANG_WIDTH_CHARS = 21
 # The selectors only offer the languages the user keeps (see prefs.py). The
 # last row is the way out of that short list: it is not a language, it opens the
 # full one — hence an id no language code can collide with.
 SHOW_ALL = "__show_all__"
-SHOW_ALL_LABEL = "Mostrar todos…"
+SHOW_ALL_LABEL = "Show all…"
 
 
 class TranslateView(Gtk.Box):
@@ -59,9 +59,9 @@ class TranslateView(Gtk.Box):
         toolbar.set_name("toolbar")
 
         self.combo_source, self._source_store = self._build_lang_combo(
-            "Idioma del texto original")
+            "Language of the original text")
         self.combo_target, self._target_store = self._build_lang_combo(
-            "Idioma de la traducción")
+            "Language of the translation")
         self._reload_lang_models()
         self.combo_source.connect("changed", self._on_source_lang_changed)
         self.combo_target.connect("changed", self._on_target_lang_changed)
@@ -70,7 +70,7 @@ class TranslateView(Gtk.Box):
         self.btn_swap.set_name("btn-swap")
         self.btn_swap.add(Gtk.Image.new_from_icon_name(
             "object-flip-horizontal-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
-        self.btn_swap.set_tooltip_text("Invertir idiomas e intercambiar textos")
+        self.btn_swap.set_tooltip_text("Swap languages and texts")
         self.btn_swap.connect("clicked", self._on_swap)
 
         # Transient status/error messages only: the direction that was actually
@@ -83,7 +83,7 @@ class TranslateView(Gtk.Box):
         self.btn_clear.set_name("btn-action")
         self.btn_clear.add(Gtk.Image.new_from_icon_name(
             "edit-clear-all-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
-        self.btn_clear.set_tooltip_text("Limpiar")
+        self.btn_clear.set_tooltip_text("Clear")
         self.btn_clear.connect("clicked", self._on_clear)
 
         # Play/stop in one button: there is one translation on screen, so there
@@ -99,7 +99,7 @@ class TranslateView(Gtk.Box):
         self.btn_copy.set_name("btn-action")
         self.btn_copy.add(Gtk.Image.new_from_icon_name(
             "edit-copy-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
-        self.btn_copy.set_tooltip_text("Copiar traducción")
+        self.btn_copy.set_tooltip_text("Copy translation")
         self.btn_copy.connect("clicked", self._on_copy)
 
         # Every action here is conditional (see _update_actions), so none of
@@ -278,7 +278,7 @@ class TranslateView(Gtk.Box):
             self._set_detected(None)
             return False
 
-        self._set_status("Traduciendo…")
+        self._set_status("Translating…")
         threading.Thread(
             target=self._worker,
             args=(request_id, text, self._source, self._target),
@@ -484,7 +484,7 @@ class TranslateView(Gtk.Box):
 
     def _on_copy(self, _btn):
         if self.copy_translation():
-            self._set_status("Traducción copiada")
+            self._set_status("Translation copied")
 
     # ---- speech -------------------------------------------------------
 
@@ -504,7 +504,7 @@ class TranslateView(Gtk.Box):
             return
         self._speech_id += 1
         speech_id = self._speech_id
-        self._set_status("Generando audio…")
+        self._set_status("Generating audio…")
         threading.Thread(
             target=self._speech_worker,
             args=(speech_id, text, self._target),
@@ -546,4 +546,4 @@ class TranslateView(Gtk.Box):
         self._speak_icon.set_from_icon_name(
             "media-playback-stop-symbolic" if playing else "audio-volume-high-symbolic",
             Gtk.IconSize.SMALL_TOOLBAR)
-        self.btn_speak.set_tooltip_text("Detener" if playing else "Escuchar traducción")
+        self.btn_speak.set_tooltip_text("Stop" if playing else "Listen to the translation")

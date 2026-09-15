@@ -14,8 +14,8 @@ file — only the panel's geometry and your language choices.
 - Translates as you type (debounced), detecting the source language
 - Every language the endpoint supports, picked in the toolbar: source selector,
   swap button, target selector. The source selector also shows what was
-  detected (`Automático · Inglés`)
-- The selectors only list the languages you actually use. "Mostrar todos…"
+  detected (`Automatic · English`)
+- The selectors only list the languages you actually use. "Show all…"
   opens the full list, with a search box and a star on every row; picking a
   language from there keeps it in the selector
 - Remembers the language pair and that short list between runs
