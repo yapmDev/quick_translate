@@ -3,6 +3,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, Pango
 import translate as translate_mod
+from design import add_classes
 
 STAR_ON = "starred-symbolic"
 STAR_OFF = "non-starred-symbolic"
@@ -21,7 +22,7 @@ class LanguageChooser(Gtk.Dialog):
     def __init__(self, parent, favorites):
         super().__init__(
             title="Languages", transient_for=parent, modal=True, destroy_with_parent=True)
-        self.set_name("lang-chooser")
+        add_classes(self, "ds-window")
         self.set_default_size(300, 420)
         self.favorites = list(dict.fromkeys(favorites))
         self.chosen: str | None = None
@@ -33,7 +34,7 @@ class LanguageChooser(Gtk.Dialog):
 
     def _build_ui(self):
         self.search = Gtk.SearchEntry()
-        self.search.set_name("lang-search")
+        add_classes(self.search, "ds-entry")
         self.search.set_placeholder_text("Search language")
         self.search.connect("search-changed", self._on_search_changed)
         # Enter takes whatever the search narrowed the list down to, so a
@@ -42,6 +43,7 @@ class LanguageChooser(Gtk.Dialog):
 
         self.listbox = Gtk.ListBox()
         self.listbox.set_name("lang-list")
+        add_classes(self.listbox, "ds-view")
         # Rows are activated, never selected: picking one closes the dialog, so
         # a selection would only ever be a highlight left behind.
         self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
@@ -60,7 +62,7 @@ class LanguageChooser(Gtk.Dialog):
         body.pack_start(self.search, False, False, 0)
         body.pack_start(scroll, True, True, 0)
 
-        self.add_button("Close", Gtk.ResponseType.CLOSE)
+        add_classes(self.add_button("Close", Gtk.ResponseType.CLOSE), "ds-button")
         self.connect("key-press-event", self._on_key_press)
 
     def _build_row(self, code: str, name: str) -> Gtk.ListBoxRow:
@@ -68,7 +70,7 @@ class LanguageChooser(Gtk.Dialog):
 
         star = Gtk.ToggleButton()
         star.set_name("btn-star")
-        star.set_relief(Gtk.ReliefStyle.NONE)
+        add_classes(star, "ds-button-bare", "ds-text-muted")
         star.add(Gtk.Image.new_from_icon_name(
             STAR_ON if starred else STAR_OFF, Gtk.IconSize.SMALL_TOOLBAR))
         star.set_active(starred)

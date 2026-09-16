@@ -1,165 +1,80 @@
-* {
-    font-family: "Ubuntu", sans-serif;
-}
+/* ============================================================
+   quick-translate's layout, on top of the design system in base.css.
+
+   base.css holds every colour, the type scale and every component;
+   widgets pick those up through their `ds-` classes, set in Python.
+   What is left here is only what belongs to this app's layout:
+   padding, margins and borders, plus the few colour roles (the
+   translation's softer text, the chooser's stars) that have no
+   meaning outside it. A rule that describes a kind of component
+   rather than one spot in this layout belongs in base.css instead.
+
+   Sizes still come from base.css's closed set (spacing 2 4 8 12 16 20).
+   ============================================================ */
+
+@import url("base.css");
 
 #panel-root {
-    background-color: @theme_bg_color;
-    border: 1px solid @borders;
+    border: 1px solid @ds_border;
 }
 
-#toolbar {
-    background-color: @theme_bg_color;
-    padding: 8px 12px;
-    border-top: 1px solid @borders;
-}
 
-/* ============================================================
-   Shared control sizing — the one place to resize every control
-   in the toolbar. Icon-only buttons also share a fixed width
-   here; the selectors size to the language name they show.
-   ============================================================ */
-#btn-action,
-#btn-swap,
-#lang-combo button {
-    min-height: 28px;
-}
-
-#btn-action,
-#btn-swap {
-    min-width: 28px;
-}
-
-#btn-action {
-    background-color: transparent;
-    color: mix(@theme_fg_color, @theme_bg_color, 0.4);
-    border: 1px solid @borders;
-    border-radius: 5px;
-    padding: 0 8px;
-    font-size: 12px;
-}
-
-#btn-action:hover {
-    background-color: @theme_selected_bg_color;
-    color: @theme_selected_fg_color;
-    border-color: @theme_selected_bg_color;
-}
-
-/* The swap button is the toolbar's primary control: it carries the
-   accent the old direction button used to. */
-#btn-swap {
-    background-color: @theme_selected_bg_color;
-    color: @theme_selected_fg_color;
-    border: 1px solid @borders;
-    border-radius: 5px;
-    padding: 0 8px;
-}
-
-#btn-swap:hover {
-    background-color: shade(@theme_selected_bg_color, 1.15);
-}
-
-/* GTK draws a combo as a button inside the widget, so the styling has
-   to go on that button rather than on #lang-combo itself. */
-#lang-combo button {
-    background-color: transparent;
-    color: @theme_fg_color;
-    border: 1px solid @borders;
-    border-radius: 5px;
-    padding: 0 8px;
-    font-size: 12px;
-}
-
-#lang-combo button:hover {
-    background-color: mix(@theme_bg_color, @theme_fg_color, 0.08);
-}
-
-/* ============================================================
-   The full language list (language_chooser.py). A separate
-   toplevel, but the stylesheet is loaded for the whole screen,
-   so it is styled from here like everything else.
-   ============================================================ */
-#lang-chooser-body {
-    padding: 10px 10px 4px 10px;
-}
-
-#lang-search {
-    font-size: 12px;
-}
-
-#lang-list {
-    background-color: @theme_base_color;
-    border: 1px solid @borders;
-    border-radius: 5px;
-}
-
-#lang-row {
-    padding: 4px 4px 4px 10px;
-    font-size: 12px;
-}
-
-#lang-row:hover {
-    background-color: mix(@theme_bg_color, @theme_fg_color, 0.08);
-}
-
-/* Starred rows keep the accent; the empty star only shows up once the
-   row is worth looking at, so the list isn't a wall of outlines. */
-#btn-star {
-    color: mix(@theme_fg_color, @theme_bg_color, 0.55);
-    padding: 2px 6px;
-    min-height: 24px;
-    min-width: 24px;
-}
-
-#btn-star:checked {
-    color: @theme_selected_bg_color;
-    background-color: transparent;
-}
-
-#btn-star:hover {
-    color: @theme_selected_bg_color;
-}
-
-#status-label {
-    color: mix(@theme_fg_color, @theme_bg_color, 0.55);
-    font-size: 11px;
-    padding: 0 8px;
-}
-
-#status-label.status-error {
-    color: @error_color;
-}
-
-#panes {
-    background-color: @theme_base_color;
-}
-
-#panes > separator {
-    background-color: @borders;
-    min-width: 1px;
-}
-
-#panes scrolledwindow,
-#panes scrolledwindow viewport {
-    background-color: transparent;
-}
-
-#source-text,
-#source-text text,
-#target-text,
-#target-text text {
-    background-color: transparent;
-    color: @theme_text_color;
-}
+/* ---- panes -------------------------------------------------- */
 
 #source-text,
 #target-text {
-    border: none;
-    padding: 12px 14px;
-    font-size: 14px;
-    caret-color: @theme_selected_bg_color;
+    padding: 12px 16px;
 }
 
+/* The translation is read, not typed: a shade softer than the text the
+   user wrote, so the two boxes don't compete for the eye. */
 #target-text,
 #target-text text {
-    color: mix(@theme_text_color, @theme_base_color, 0.12);
+    color: mix(@ds_text, @ds_view_bg, 0.12);
+}
+
+
+/* ---- toolbar ------------------------------------------------ */
+
+#toolbar {
+    padding: 8px 12px;
+}
+
+#status-label {
+    padding: 0 8px;
+}
+
+
+/* ---- language chooser --------------------------------------- */
+
+/* A separate toplevel, but the stylesheet is loaded for the whole
+   screen, so it is styled from here like everything else. */
+#lang-chooser-body {
+    padding: 12px 12px 4px 12px;
+}
+
+#lang-list {
+    border: 1px solid @ds_border;
+    border-radius: 8px;
+}
+
+#lang-row {
+    padding: 4px 4px 4px 12px;
+}
+
+#lang-row:hover {
+    background-color: @ds_hover_bg;
+}
+
+/* Starred rows keep the accent, at rest and under the pointer alike. */
+#btn-star {
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0 4px;
+}
+
+#btn-star:checked,
+#btn-star:hover {
+    background-color: transparent;
+    color: @ds_accent;
 }

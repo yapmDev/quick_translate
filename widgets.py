@@ -6,6 +6,7 @@ import threading
 import prefs
 import translate as translate_mod
 import tts
+from design import add_classes
 from language_chooser import LanguageChooser
 
 # Typing keeps firing "changed"; a translation is a network round trip, so the
@@ -59,6 +60,7 @@ class TranslateView(Gtk.Box):
     def _build_ui(self):
         toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         toolbar.set_name("toolbar")
+        add_classes(toolbar, "ds-bar", "ds-divider-top")
 
         self.combo_source, self._source_store = self._build_lang_combo(
             "Language of the original text")
@@ -78,7 +80,8 @@ class TranslateView(Gtk.Box):
         self._lang_sizes.add_widget(self.combo_target)
 
         self.btn_swap = Gtk.Button()
-        self.btn_swap.set_name("btn-swap")
+        # The toolbar's primary control, so it carries the accent.
+        add_classes(self.btn_swap, "ds-button", "ds-button-icon", "ds-button-accent")
         self.btn_swap.add(Gtk.Image.new_from_icon_name(
             "object-flip-horizontal-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
         self.btn_swap.set_tooltip_text("Swap languages and texts")
@@ -88,10 +91,11 @@ class TranslateView(Gtk.Box):
         # used lives in the selectors themselves.
         self.status_label = Gtk.Label(label="", xalign=1)
         self.status_label.set_name("status-label")
+        add_classes(self.status_label, "ds-caption", "ds-text-muted")
         self.status_label.set_ellipsize(3)
 
         self.btn_clear = Gtk.Button()
-        self.btn_clear.set_name("btn-action")
+        add_classes(self.btn_clear, "ds-button", "ds-button-icon")
         self.btn_clear.add(Gtk.Image.new_from_icon_name(
             "edit-clear-all-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
         self.btn_clear.set_tooltip_text("Clear")
@@ -100,14 +104,14 @@ class TranslateView(Gtk.Box):
         # Play/stop in one button: there is one translation on screen, so there
         # is never a second sound to choose between.
         self.btn_speak = Gtk.Button()
-        self.btn_speak.set_name("btn-action")
+        add_classes(self.btn_speak, "ds-button", "ds-button-icon")
         self._speak_icon = Gtk.Image.new_from_icon_name(
             "audio-volume-high-symbolic", Gtk.IconSize.SMALL_TOOLBAR)
         self.btn_speak.add(self._speak_icon)
         self.btn_speak.connect("clicked", self._on_speak)
 
         self.btn_copy = Gtk.Button()
-        self.btn_copy.set_name("btn-action")
+        add_classes(self.btn_copy, "ds-button", "ds-button-icon")
         self.btn_copy.add(Gtk.Image.new_from_icon_name(
             "edit-copy-symbolic", Gtk.IconSize.SMALL_TOOLBAR))
         self.btn_copy.set_tooltip_text("Copy translation")
@@ -142,17 +146,21 @@ class TranslateView(Gtk.Box):
         toolbar.pack_end(self.status_label, True, True, 0)
 
         source_scroll = Gtk.ScrolledWindow()
+        add_classes(source_scroll, "ds-transparent")
         source_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.source_view = Gtk.TextView()
         self.source_view.set_name("source-text")
+        add_classes(self.source_view, "ds-text-view")
         self.source_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         self.source_view.get_buffer().connect("changed", self._on_source_changed)
         source_scroll.add(self.source_view)
 
         target_scroll = Gtk.ScrolledWindow()
+        add_classes(target_scroll, "ds-transparent")
         target_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.target_view = Gtk.TextView()
         self.target_view.set_name("target-text")
+        add_classes(self.target_view, "ds-text-view")
         self.target_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         self.target_view.set_editable(False)
         self.target_view.set_cursor_visible(False)
@@ -170,10 +178,11 @@ class TranslateView(Gtk.Box):
         same_width.add_widget(target_scroll)
 
         panes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        panes.set_name("panes")
+        add_classes(panes, "ds-view")
         panes.pack_start(source_scroll, True, True, 0)
         panes.pack_start(
-            Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 0)
+            add_classes(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), "ds-separator"),
+            False, False, 0)
         panes.pack_start(target_scroll, True, True, 0)
 
         self.pack_start(panes, True, True, 0)
@@ -189,7 +198,7 @@ class TranslateView(Gtk.Box):
         store = Gtk.ListStore(str, str)
 
         combo = Gtk.ComboBox.new_with_model(store)
-        combo.set_name("lang-combo")
+        add_classes(combo, "ds-combo", "ds-caption")
         combo.set_tooltip_text(tooltip)
         # Column 0 is the language code, so the selection is read and written as
         # a code (set_active_id/get_active_id) instead of as a row index. The
@@ -341,11 +350,15 @@ class TranslateView(Gtk.Box):
 
     def _set_status(self, text: str, error: bool = False):
         self.status_label.set_text(text)
+        # Muted and destructive are both colours of the same label: only one of
+        # them may be on it at a time.
         style = self.status_label.get_style_context()
         if error:
-            style.add_class("status-error")
+            style.remove_class("ds-text-muted")
+            style.add_class("ds-text-destructive")
         else:
-            style.remove_class("status-error")
+            style.remove_class("ds-text-destructive")
+            style.add_class("ds-text-muted")
 
     # ---- languages ---------------------------------------------------
 

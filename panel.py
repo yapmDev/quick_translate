@@ -7,6 +7,7 @@ from pathlib import Path
 import time
 import clipboard as clipboard_mod
 import geometry as geometry_mod
+from design import add_classes
 from widgets import TranslateView
 
 
@@ -14,6 +15,7 @@ class TranslatorPanel(Gtk.Window):
     def __init__(self):
         super().__init__(type=Gtk.WindowType.TOPLEVEL)
         self.set_name("panel-root")
+        add_classes(self, "ds-window")
         self.set_title("Quick Translate")
         self.set_decorated(True)
         self.set_resizable(True)
@@ -34,6 +36,8 @@ class TranslatorPanel(Gtk.Window):
         self.connect("focus-out-event", self._on_focus_out)
 
     def _load_css(self):
+        # style.css @imports base.css, the design system, so one provider
+        # carries both in a fixed cascade order.
         css_path = Path(__file__).parent / "style.css"
         provider = Gtk.CssProvider()
         provider.load_from_path(str(css_path))

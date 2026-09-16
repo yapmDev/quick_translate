@@ -1,0 +1,456 @@
+/* ============================================================
+   base.css — the app's design system.
+
+   Every colour, the type scale and every component is defined here,
+   once, and the whole UI is built from it. style.css @imports it and
+   holds only layout: padding, margins, widths, and the rare colour
+   role that belongs to a single view. Nothing in here is about a
+   particular screen — a component is described by what it is (a
+   card, a bar, a chip), never by where it happens to be used.
+
+   Everything here follows the GTK theme — no colour is hardcoded
+   and no font is declared — so the app matches whatever the user
+   picked in GNOME, light or dark.
+
+   New UI uses what is here before adding anything: an existing token,
+   size from the closed set, an existing class. When something new is
+   genuinely needed, it is added here as a general component, not
+   styled ad hoc in style.css or from Python.
+
+   Every class is prefixed `ds-` and every colour `@ds_`. CSS
+   providers are screen-global and share one namespace with the
+   theme's own named colours (@borders, @error_color, ...): an
+   unprefixed @define-color could silently repaint the theme.
+
+   Layers, in order — later layers build on earlier ones:
+     1. tokens       colours, and the closed set of sizes
+     2. typography   the three-step type scale, text colours
+     3. surfaces     window, view, bar, dialog, card
+     4. controls     button, entry, combo, chip, inline editing
+     5. popups       menus and combo dropdowns (element selectors)
+   ============================================================ */
+
+
+/* ============================================================
+   1. Tokens
+
+   Colours are derived from the theme, never written out. Use the
+   token rather than the theme colour it resolves to, so a role can
+   be retuned in one place for the whole UI.
+   ============================================================ */
+
+@define-color ds_window_bg     @theme_bg_color;               /* the app's own ground */
+@define-color ds_view_bg       @theme_base_color;             /* where content is typed: fields, editors, button faces */
+@define-color ds_card_bg       shade(@theme_bg_color, 0.85);  /* a surface set on the ground: cards, menus */
+@define-color ds_hover_bg      shade(@theme_bg_color, 0.95);  /* any surface under the pointer, or selected */
+
+@define-color ds_fg            @theme_fg_color;
+@define-color ds_text          @theme_text_color;             /* on @ds_view_bg */
+@define-color ds_secondary_fg  mix(@theme_fg_color, @theme_bg_color, 0.4);  /* icons, form labels */
+@define-color ds_muted_fg      mix(@theme_fg_color, @theme_bg_color, 0.5);  /* captions, hints, counts */
+
+@define-color ds_border        @borders;
+@define-color ds_border_subtle @unfocused_borders;
+
+@define-color ds_accent        @theme_selected_bg_color;      /* focus, selection, the primary action */
+@define-color ds_on_accent     @theme_selected_fg_color;      /* text on an accent or destructive fill */
+@define-color ds_destructive   @error_color;
+@define-color ds_destructive_hover shade(@error_color, 0.8);
+
+/* Text highlights (search matches). Not selection: that is the accent,
+   and a match must not read as selected text. Mostly the view's own
+   ground, so the text on it keeps the theme's colour in light and dark. */
+@define-color ds_highlight_bg        mix(@warning_color, @theme_base_color, 0.65);
+@define-color ds_highlight_strong_bg mix(@warning_color, @theme_base_color, 0.25);
+
+/* Sizes. GTK3 CSS has no variables for lengths, so this is a closed
+   set written out by hand: reach for one of these, never a new value.
+
+     radius    6px  small — a chip set inside a card
+               8px  control, card, menu
+              10px  dialog
+     height   30px  control (button, entry, combo)
+              22px  chip
+     spacing   2 4 8 12 16 20 px
+     border    1px
+*/
+
+
+/* ============================================================
+   2. Typography
+
+   The app has no font of its own: both the family and the base
+   size come from the GTK theme — i.e. whatever the user picked as
+   GNOME's interface font — so nothing sets a font-family, and no
+   size is written in px.
+
+   Sizes are relative to that base, and there are only three:
+
+     .ds-title    1.15em   a view's or a dialog's title
+     (body)       1em      anything the user reads or types; never
+                           declared, it is simply the theme's size
+     .ds-caption  0.85em   metadata *about* the body — previews,
+                           counts, hints
+
+   `em` resolves against the parent node, so it multiplies down the
+   tree: put a size class on the outermost node of a widget only,
+   and never on a child that already inherits the right one.
+   ============================================================ */
+
+.ds-title {
+    color: @ds_fg;
+    font-size: 1.15em;
+    font-weight: bold;
+}
+
+.ds-caption {
+    font-size: 0.85em;
+}
+
+.ds-strong {
+    font-weight: bold;
+}
+
+.ds-text-secondary   { color: @ds_secondary_fg; }
+.ds-text-muted       { color: @ds_muted_fg; }
+.ds-text-accent      { color: @ds_accent; }
+.ds-text-destructive { color: @ds_destructive; }
+
+
+/* ============================================================
+   3. Surfaces
+   ============================================================ */
+
+.ds-window {
+    background-color: @ds_window_bg;
+}
+
+.ds-view {
+    background-color: @ds_view_bg;
+}
+
+/* A strip of controls on the window's ground. */
+.ds-bar {
+    background-color: @ds_window_bg;
+}
+
+/* The bar sits below content and needs an edge against it. */
+.ds-divider-top {
+    border-top: 1px solid @ds_border;
+}
+
+.ds-dialog {
+    background-color: @ds_window_bg;
+    border: 1px solid @ds_border;
+    border-radius: 10px;
+}
+
+.ds-separator {
+    background-color: @ds_border;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+/* For containers that must show the ground behind them. A scrolled
+   window wraps a non-scrollable child in a viewport, and a text view
+   draws its own `text` node — both paint the theme's base colour over
+   the parent unless told not to. */
+.ds-transparent,
+.ds-transparent viewport,
+.ds-transparent text {
+    background-color: transparent;
+}
+
+/* A text view that reads as part of the page it sits on. */
+.ds-text-view,
+.ds-text-view text {
+    background-color: transparent;
+    color: @ds_text;
+}
+
+.ds-text-view {
+    border: none;
+    caret-color: @ds_accent;
+}
+
+/* A card: one item on the ground. `.hover`, `.selected` and `.focused`
+   are the class forms of the pseudo-states, for when the pointer or the
+   focus lands on a wrapping event box rather than the painted node — set
+   them from code and the card looks exactly as it would have. */
+.ds-card {
+    background-color: @ds_card_bg;
+    border: 1px solid transparent;
+    border-radius: 8px;
+}
+
+.ds-card:hover,
+.ds-card.hover {
+    background-color: @ds_hover_bg;
+    border-color: @ds_border_subtle;
+}
+
+/* An accent border, not the theme's dashed focus ring drawn square
+   across the card's rounded corners. */
+.ds-card:selected,
+.ds-card.selected,
+.ds-card.focused {
+    outline: none;
+    background-color: @ds_hover_bg;
+    border-color: @ds_accent;
+}
+
+
+/* ============================================================
+   4. Controls
+
+   Every framed control shares one surface: the view's ground, a 1px
+   border, an 8px radius and a 30px height. Themes paint a button's
+   face with a background-image gradient and its frame with an inset
+   box-shadow, so neither goes away by setting background-color and
+   border alone — every control here kills both explicitly.
+   ============================================================ */
+
+.ds-button {
+    min-height: 30px;
+    padding: 0 16px;
+    background-image: none;
+    background-color: @ds_view_bg;
+    color: @ds_fg;
+    border: 1px solid @ds_border;
+    border-radius: 8px;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+.ds-button:hover {
+    background-color: @ds_hover_bg;
+    border-color: @ds_accent;
+}
+
+/* Icon-only: square, and quieter than a labelled button at rest. */
+.ds-button-icon {
+    min-width: 30px;
+    padding: 0 8px;
+    color: @ds_secondary_fg;
+}
+
+/* A primary or destructive action keeps its colour on the label rather
+   than the fill — the shared surface takes the background, but such an
+   action still must not read as a neutral button — and takes the fill
+   only on hover. */
+.ds-button-accent {
+    color: @ds_accent;
+    font-weight: bold;
+}
+
+.ds-button-destructive {
+    color: @ds_destructive;
+    font-weight: bold;
+}
+
+.ds-button-icon:hover,
+.ds-button-accent:hover {
+    background-color: @ds_accent;
+    color: @ds_on_accent;
+    border-color: @ds_accent;
+}
+
+.ds-button-destructive:hover {
+    background-color: @ds_destructive;
+    color: @ds_on_accent;
+    border-color: @ds_destructive;
+}
+
+/* No frame at all, for an action set inside content, where a bordered
+   control would read as part of the content itself. Give it its colour
+   with a text class. */
+.ds-button-bare {
+    min-height: 0;
+    min-width: 0;
+    padding: 0 2px;
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    text-shadow: none;
+    outline-style: none;
+}
+
+/* Already coloured at rest, so hover can only deepen it — the cue that
+   the pointer is on the action, not that the action is destructive. */
+.ds-button-bare.ds-text-destructive:hover {
+    color: @ds_destructive_hover;
+}
+
+/* A small framed button set inside a card. */
+.ds-chip {
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0;
+    background-image: none;
+    background-color: transparent;
+    color: @ds_muted_fg;
+    border: 1px solid @ds_border;
+    border-radius: 6px;
+    box-shadow: none;
+    text-shadow: none;
+    font-size: 0.85em;
+}
+
+.ds-chip:hover {
+    background-color: @ds_accent;
+    color: @ds_on_accent;
+}
+
+.ds-chip-destructive:hover {
+    background-color: @ds_destructive;
+}
+
+.ds-entry {
+    min-height: 30px;
+    padding: 0 8px;
+    background-color: @ds_view_bg;
+    color: @ds_text;
+    border: 1px solid @ds_border;
+    border-radius: 8px;
+    caret-color: @ds_accent;
+}
+
+.ds-entry:focus {
+    border-color: @ds_accent;
+}
+
+/* The combo's own background lives on its inner button node, not on the
+   combobox itself — styling the combobox alone leaves the theme's default
+   (light, gradient) button painted on top of it. */
+.ds-combo {
+    min-height: 30px;
+}
+
+.ds-combo button,
+.ds-combo button.combo {
+    min-height: 30px;
+    padding: 0 8px;
+    background-image: none;
+    background-color: @ds_view_bg;
+    color: @ds_text;
+    border: 1px solid @ds_border;
+    border-radius: 8px;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+.ds-combo button:hover,
+.ds-combo button:checked,
+.ds-combo button:active {
+    background-image: none;
+    background-color: @ds_hover_bg;
+    border-color: @ds_accent;
+}
+
+.ds-combo arrow {
+    color: @ds_secondary_fg;
+}
+
+/* An entry meant to read as text on the page, not as a form field. The
+   theme draws an entry's focus frame as an inset box-shadow plus an
+   outline, neither of which `border: none` touches. */
+.ds-inline-entry {
+    padding: 2px 0;
+    background-color: transparent;
+    color: @ds_text;
+    border: none;
+    border-bottom: 1px solid transparent;
+    border-radius: 0;
+    box-shadow: none;
+    outline-style: none;
+    caret-color: @ds_accent;
+}
+
+/* A combo with an entry, in the same spirit: the arrow bare instead of
+   sitting in the theme's grey button, which the theme repaints on hover
+   and while the popup holds it :active/:checked. Put .ds-inline-entry on
+   the combo's entry child too. */
+.ds-inline-combo button,
+.ds-inline-combo button:hover,
+.ds-inline-combo button:focus,
+.ds-inline-combo button:active,
+.ds-inline-combo button:checked {
+    min-height: 0;
+    min-width: 16px;
+    padding: 0 2px;
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    outline-style: none;
+}
+
+
+/* ============================================================
+   5. Popups
+
+   Element selectors, so they apply without any class: a combo's popup
+   is a toplevel, not a child of the combo, so it never inherits the
+   app's colours and lands on the theme's default (light) menu
+   background. The two kinds of combo also popup differently: a plain
+   ComboBoxText opens a GtkMenu, while one with an entry is forced into
+   list mode (a popup window wrapping a treeview) — hence both sets of
+   selectors. This also covers the tray menu.
+   ============================================================ */
+
+/* Exactly one node draws the frame. A popup is three nested nodes —
+   window.popup > decoration > menu (or > scrolledwindow in list mode) —
+   so a border on more than one stacks into the visible double outline.
+   The outer two are flattened here and the frame lives on the innermost
+   node, which is also the one that has to carry the background: the
+   theme paints decoration's own light border/shadow otherwise. */
+window.popup,
+window.popup.background,
+window.popup decoration {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+menu,
+menu.background,
+window.popup scrolledwindow {
+    background-color: @ds_card_bg;
+    border: 1px solid @ds_border;
+    border-radius: 8px;
+    padding: 2px 0;
+}
+
+menu menuitem,
+window.popup treeview.view,
+window.popup treeview.view cell {
+    background-color: transparent;
+    color: @ds_fg;
+    padding: 4px 12px;
+}
+
+/* Caption, but declared on the popup's own node only — `cell` is a child
+   of treeview.view and inherits it; setting it on both would multiply. */
+menu menuitem,
+window.popup treeview.view {
+    font-size: 0.85em;
+}
+
+menu menuitem:hover,
+window.popup treeview.view:hover,
+window.popup treeview.view:selected {
+    background-color: @ds_accent;
+    color: @ds_on_accent;
+}
+
+menu separator,
+window.popup separator {
+    background-color: @ds_border;
+}
+
+window.popup viewport {
+    background-color: transparent;
+    border: none;
+}
