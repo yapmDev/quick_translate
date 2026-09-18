@@ -14,6 +14,16 @@ MAX_AGE_S = 30.0
 _changed_at: float | None = None
 
 
+def _now() -> float:
+    """A monotonic clock that keeps counting while the machine is suspended.
+
+    CLOCK_MONOTONIC does not, so a copy made before a suspend comes back
+    reading a few seconds old on resume and passes for fresh no matter how long
+    the machine was away. BOOTTIME is the same clock with that time counted in.
+    """
+    return time.clock_gettime(time.CLOCK_BOOTTIME)
+
+
 def start_tracking():
     """Begin stamping clipboard changes. Call once, at app start.
 
@@ -34,7 +44,7 @@ def _on_owner_change(_clipboard, event):
     # same old content behind and must not pass for a fresh copy.
     if event.reason == Gdk.OwnerChange.NEW_OWNER:
         global _changed_at
-        _changed_at = time.monotonic()
+        _changed_at = _now()
 
 
 def request_fresh_text(callback, max_age: float = MAX_AGE_S):
@@ -44,7 +54,7 @@ def request_fresh_text(callback, max_age: float = MAX_AGE_S):
     Reading it is asynchronous — the owner is another process and has to be
     asked — so this returns immediately and answers later.
     """
-    if _changed_at is None or time.monotonic() - _changed_at > max_age:
+    if _changed_at is None or _now() - _changed_at > max_age:
         callback("")
         return
     Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).request_text(_on_text, callback)

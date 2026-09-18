@@ -113,15 +113,26 @@ class TranslatorPanel(Gtk.Window):
         self.view.focus_source()
         return False
 
-    def _prefill_from_clipboard(self):
-        clipboard_mod.request_fresh_text(self._on_fresh_clipboard)
+    def _prefill_from_clipboard(self, clear_if_stale: bool):
+        clipboard_mod.request_fresh_text(
+            lambda text: self._on_fresh_clipboard(text, clear_if_stale))
         return False
 
-    def _on_fresh_clipboard(self, text: str):
+    def _on_fresh_clipboard(self, text: str, clear_if_stale: bool):
         # The answer comes from another process, so by now the panel may be
         # gone again or the user may already be typing that very text.
-        if not text or not self.get_visible() or text == self.view.get_source_text():
+        if not self.get_visible() or text == self.view.get_source_text():
             return
+        # Hiding the panel does not empty it, so an opening with nothing recent
+        # enough to paste would otherwise come up showing the previous session —
+        # which reads as a stale copy being pasted. Opening it means "translate
+        # what I just copied", so no recent copy means a clean panel. Only on an
+        # opening, though: re-summoning a panel that is already up must not wipe
+        # what the user is in the middle of typing.
+        if not text and not clear_if_stale:
+            return
+        # Empty text runs the translation too — that is what clears the
+        # translation, the status and the detection in one go, with no request.
         self.view.set_source_text(text)
         self.view.translate_now()
 
@@ -131,8 +142,9 @@ class TranslatorPanel(Gtk.Window):
         self.present()
         GLib.idle_add(self._request_focus)
         # Opening the panel means "translate what I just copied" whenever there
-        # is something recent enough to qualify.
-        GLib.idle_add(self._prefill_from_clipboard)
+        # is something recent enough to qualify, and a clean slate when there
+        # is not.
+        GLib.idle_add(self._prefill_from_clipboard, True)
 
     def summon(self):
         """Hotkey entry point: always come up, never toggle off.
@@ -146,7 +158,7 @@ class TranslatorPanel(Gtk.Window):
             return
         self.present()
         GLib.idle_add(self._request_focus)
-        GLib.idle_add(self._prefill_from_clipboard)
+        GLib.idle_add(self._prefill_from_clipboard, False)
 
     def toggle(self):
         if self.get_visible():
